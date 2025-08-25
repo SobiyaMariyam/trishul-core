@@ -7,6 +7,7 @@ from pymongo import MongoClient
 PROJECT_ROOT = Path(__file__).resolve().parents[2]  # ...\trishul
 ENV_PATH = PROJECT_ROOT / ".env"
 
+
 def _load_env_file(path: Path):
     if not path.exists():
         return
@@ -25,6 +26,7 @@ def _load_env_file(path: Path):
             v = v.strip().strip("'").strip('"')  # remove accidental quotes
             os.environ.setdefault(k, v)
 
+
 # Load it before reading any env vars
 _load_env_file(ENV_PATH)
 
@@ -35,10 +37,12 @@ MONGO_URI = os.getenv("MONGO_URI")
 # ---- Client ----
 _client = MongoClient(MONGO_URI) if MONGO_URI else None
 
+
 def get_core_db():
     if not _client:
         raise RuntimeError("MONGO_URI not set. Create .env with MONGO_URI.")
     return _client[CORE_DB]
+
 
 def get_tenant_db(tenant_slug: str):
     if not _client:

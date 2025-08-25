@@ -8,6 +8,7 @@ from app.db.manager import get_core_db, get_tenant_db
 TENANT_HEADER = "x-tenant"
 LOCAL_DOMAIN = os.getenv("LOCAL_DOMAIN", "lvh.me")
 
+
 async def tenancy_middleware(request: Request, call_next):
     host = request.headers.get("host", "")
     tenant = request.headers.get(TENANT_HEADER)
