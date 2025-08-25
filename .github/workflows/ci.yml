@@ -16,13 +16,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install deps
+      - name: Install dependencies
         run: |
           python -m venv .venv
           . .venv/bin/activate
           python -m pip install --upgrade pip
           pip install fastapi uvicorn[standard] pymongo python-dotenv pydantic-settings passlib[bcrypt] pyjwt
-          pip install ruff black mypy pytest
+          pip install ruff black mypy pytest httpx 
       - name: Lint (ruff)
         run: |
           . .venv/bin/activate
@@ -40,27 +40,3 @@ jobs:
         run: |
           . .venv/bin/activate
           pytest -q
-      - name: Ruff (auto-fix imports)
-        run: |
-         pip install ruff
-         ruff check --select I --fix .
-      - name: Install httpx
-        run: |
-         python -m venv .venv
-         . .venv/bin/activate
-         python -m pip install --upgrade pip
-         pip install -r requirements.txt
-         pip install ruff black mypy
-      - name: Run tests
-        run: |
-         . .venv/bin/activate
-         python -c "import httpx; print('httpx OK')"  
-         pytest -q
-      - name: Sanity check deps
-        run: |
-          . .venv/bin/activate
-          python -c "import httpx; print('httpx version:', httpx.__version__)"
-          pip freeze
-
-
-
