@@ -1,53 +1,52 @@
-﻿import os
+# app/db/manager.py
+
+from __future__ import annotations
+
+import os
 from pathlib import Path
-
 from typing import Optional
-from pymongo.mongo_client import MongoClient
 
-_client: Optional[MongoClient] = MongoClient(MONGO_URI) if MONGO_URI else None
+from pymongo import MongoClient
+
 
 # ---- Load .env manually (robust against UTF-8 BOM / encoding issues) ----
-PROJECT_ROOT = Path(__file__).resolve().parents[2]  # ...\trishul
+PROJECT_ROOT = Path(__file__).resolve().parents[2]  # .../trishul
 ENV_PATH = PROJECT_ROOT / ".env"
 
 
-def _load_env_file(path: Path):
+def _load_env_file(path: Path) -> None:
     if not path.exists():
         return
     try:
-        text = path.read_text(encoding="utf-8-sig")
+        text = path.read_text(encoding="utf-8-sig")  # strips BOM if present
     except Exception:
-        # fallback if encoding is weird
         text = path.read_text(errors="ignore")
     for raw in text.splitlines():
         line = raw.strip()
-        if not line or line.startswith("#"):
+        if not line or line.startswith("#") or "=" not in line:
             continue
-        if "=" in line:
-            k, v = line.split("=", 1)
-            k = k.strip()
-            v = v.strip().strip("'").strip('"')  # remove accidental quotes
-            os.environ.setdefault(k, v)
+        k, v = line.split("=", 1)
+        os.environ.setdefault(k.strip(), v.strip().strip("'").strip('"'))
 
 
-# Load it before reading any env vars
+# Load it BEFORE reading any env vars
 _load_env_file(ENV_PATH)
 
 # ---- Config ----
 CORE_DB = os.getenv("CORE_DB", "trishul_core")
-MONGO_URI = os.getenv("MONGO_URI")
+MONGO_URI: Optional[str] = os.getenv("MONGO_URI")
 
-# ---- Client ----
-_client = MongoClient(MONGO_URI) if MONGO_URI else None
+# ---- Client (built after MONGO_URI exists) ----
+_client: Optional[MongoClient] = MongoClient(MONGO_URI) if MONGO_URI else None
 
 
 def get_core_db():
-    if not _client:
-        raise RuntimeError("MONGO_URI not set. Create .env with MONGO_URI.")
+    if _client is None:
+        raise RuntimeError("MONGO_URI not set. Define it in your environment or .env")
     return _client[CORE_DB]
 
 
 def get_tenant_db(tenant_slug: str):
-    if not _client:
-        raise RuntimeError("MONGO_URI not set. Create .env with MONGO_URI.")
+    if _client is None:
+        raise RuntimeError("MONGO_URI not set. Define it in your environment or .env")
     return _client[f"tenant_{tenant_slug}"]
