@@ -1,4 +1,4 @@
-# app/db/manager.py
+"""Database manager utilities."""
 
 from __future__ import annotations
 
