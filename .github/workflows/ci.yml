@@ -1,0 +1,37 @@
+﻿name: CI
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: |
+          python -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install fastapi uvicorn[standard] pymongo python-dotenv pydantic-settings passlib[bcrypt] pyjwt
+          pip install ruff black mypy pytest
+      - name: Lint (ruff)
+        run: |
+          . .venv/bin/activate
+          ruff check .
+      - name: Format check (black)
+        run: |
+          . .venv/bin/activate
+          black --check .
+      - name: Type check (mypy)
+        run: |
+          . .venv/bin/activate
+          mypy app
+      - name: Tests
+        run: |
+          . .venv/bin/activate
+          pytest -q
