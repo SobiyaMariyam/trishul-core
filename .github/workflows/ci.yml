@@ -46,6 +46,5 @@ jobs:
          ruff check --select I --fix .
       - name: Install deps (Poetry)
         run: |
-         pipx install poetry
-         poetry install --with dev
+         pip install httpx
     
