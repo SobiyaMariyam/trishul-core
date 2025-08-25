@@ -45,6 +45,7 @@ jobs:
          pip install ruff
          ruff check --select I --fix .
       - name: Install httpx
+        run: |
          python -m venv .venv
          . .venv/bin/activate
          python -m pip install --upgrade pip
