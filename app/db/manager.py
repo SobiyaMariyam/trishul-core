@@ -2,6 +2,10 @@
 from pathlib import Path
 
 from pymongo import MongoClient
+from typing import Optional
+from pymongo.mongo_client import MongoClient
+
+_client: Optional[MongoClient] = MongoClient(MONGO_URI) if MONGO_URI else None
 
 # ---- Load .env manually (robust against UTF-8 BOM / encoding issues) ----
 PROJECT_ROOT = Path(__file__).resolve().parents[2]  # ...\trishul
