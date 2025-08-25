@@ -46,5 +46,20 @@ jobs:
          ruff check --select I --fix .
       - name: Install deps (Poetry)
         run: |
-         pip install httpx
-    
+         . .venv/bin/activate
+         python -m pip install --upgrade pip
+         pip install -r requirements.txt 
+      - name: Sanity check deps (must print httpx version)
+        run: |
+          . .venv/bin/activate
+          python -c "import httpx, sys; print('httpx:', httpx.__version__, 'python:', sys.version)"
+          pip freeze
+
+      - name: Run tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+          # If your tests need a real DB, add the secret in repo settings and uncomment:
+          # MONGO_URI: ${{ secrets.MONGO_URI }}
+        run: |
+          . .venv/bin/activate
+          pytest -q
