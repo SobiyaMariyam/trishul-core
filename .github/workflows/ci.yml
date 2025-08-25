@@ -48,5 +48,5 @@ jobs:
          python -m venv .venv
          . .venv/bin/activate
          python -m pip install --upgrade pip
-         pip install fastapi uvicorn[standard] pymongo python-dotenv pydantic-settings passlib[bcrypt] pyjwt httpx pytest
+         pip install httpx pytest
 
