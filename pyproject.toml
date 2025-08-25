@@ -12,3 +12,10 @@ known-first-party = ["app"]
 
 [tool.mypy]
 ignore_missing_imports = true
+[project]
+dependencies = [
+    "fastapi",
+    "starlette",
+    "httpx",
+    # ...other dependencies
+]
