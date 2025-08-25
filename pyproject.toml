@@ -1,21 +1,20 @@
 [tool.black]
 line-length = 88
+target-version = ["py311"]  # match your Python 3.11 venv
 
 [tool.ruff]
 line-length = 88
+target-version = "py311"    # makes parsing consistent with Black
+src = ["app", "tests"]      # helps isort classify first-party vs. third-party
+fix = true                  # allows `ruff check --fix` to apply fixes by default
 
 [tool.ruff.lint]
-select = ["E","F","I"]
+select = ["E", "F", "I"]    # keep it focused (flake8 errors, pyflakes, isort)
+# Later you can add more, e.g. "B" (bugbear), "UP" (pyupgrade), "W"
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
+combine-as-imports = true   # optional: merges multi-imports with "as"
 
 [tool.mypy]
 ignore_missing_imports = true
-[project]
-dependencies = [
-    "fastapi",
-    "starlette",
-    "httpx",
-    # ...other dependencies
-]
