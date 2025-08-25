@@ -56,5 +56,11 @@ jobs:
          . .venv/bin/activate
          python -c "import httpx; print('httpx OK')"  
          pytest -q
+      - name: Sanity check deps
+        run: |
+          . .venv/bin/activate
+          python -c "import httpx; print('httpx version:', httpx.__version__)"
+          pip freeze
+
 
 
