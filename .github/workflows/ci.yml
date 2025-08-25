@@ -26,6 +26,7 @@ jobs:
         run: |
           . .venv/bin/activate
           ruff check .
+          ruff check . --fix
       - name: Format check (black)
         run: |
           . .venv/bin/activate
