@@ -33,28 +33,25 @@ _load_env_file(ENV_PATH)
 
 # ---- Config ----
 CORE_DB = os.getenv("CORE_DB", "trishul_core")
-MONGO_URI: Optional[str] = os.getenv("MONGO_URI")
 
-# ---- Client (built after MONGO_URI exists) ----
+# ---- Lazy client (do not connect at import time) ----
 _client: Optional[MongoClient] = None
 
+
 def _get_client() -> MongoClient:
+    """Create or return a singleton MongoClient when first needed."""
     global _client
     if _client is None:
         uri = os.getenv("MONGO_URI")
         if not uri:
-            raise RuntimeError("MONGO_URI is not set")
+            raise RuntimeError("MONGO_URI is not set; define it in env or .env.")
         _client = MongoClient(uri)
     return _client
 
 
 def get_core_db():
-    if _client is None:
-        raise RuntimeError("MONGO_URI not set. Define it in your environment or .env")
-    return _client[CORE_DB]
+    return _get_client()[CORE_DB]
 
 
 def get_tenant_db(tenant_slug: str):
-    if _client is None:
-        raise RuntimeError("MONGO_URI not set. Define it in your environment or .env")
-    return _client[f"tenant_{tenant_slug}"]
+    return _get_client()[f"tenant_{tenant_slug}"]
