@@ -1,5 +1,6 @@
 ﻿import os
 from pathlib import Path
+
 from pymongo import MongoClient
 
 # ---- Load .env manually (robust against UTF-8 BOM / encoding issues) ----

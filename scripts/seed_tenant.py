@@ -1,4 +1,5 @@
 ﻿from app.db.manager import get_core_db
+
 core = get_core_db()
 core.tenants.update_one(
     {"slug":"tenant1"},
