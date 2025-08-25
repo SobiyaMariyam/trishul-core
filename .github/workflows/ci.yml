@@ -6,6 +6,7 @@ on:
 
 env:
   PYTHONPATH: ${{ github.workspace }}
+  MONGO_URI: ${{ secrets.MONGO_URI }}
 
 jobs:
   build:
