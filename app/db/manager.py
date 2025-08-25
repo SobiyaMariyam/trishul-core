@@ -1,7 +1,6 @@
 ﻿import os
 from pathlib import Path
 
-from pymongo import MongoClient
 from typing import Optional
 from pymongo.mongo_client import MongoClient
 
