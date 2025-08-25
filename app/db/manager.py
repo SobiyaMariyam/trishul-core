@@ -8,7 +8,6 @@ from typing import Optional
 
 from pymongo import MongoClient
 
-
 # ---- Load .env manually (robust against UTF-8 BOM / encoding issues) ----
 PROJECT_ROOT = Path(__file__).resolve().parents[2]  # .../trishul
 ENV_PATH = PROJECT_ROOT / ".env"
