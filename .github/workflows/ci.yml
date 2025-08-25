@@ -49,5 +49,12 @@ jobs:
          python -m venv .venv
          . .venv/bin/activate
          python -m pip install --upgrade pip
-         pip install httpx pytest
+         pip install -r requirements.txt
+         pip install ruff black mypy
+      - name: Run tests
+        run: |
+         . .venv/bin/activate
+         python -c "import httpx; print('httpx OK')"  
+         pytest -q
+
 
