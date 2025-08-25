@@ -36,7 +36,16 @@ CORE_DB = os.getenv("CORE_DB", "trishul_core")
 MONGO_URI: Optional[str] = os.getenv("MONGO_URI")
 
 # ---- Client (built after MONGO_URI exists) ----
-_client: Optional[MongoClient] = MongoClient(MONGO_URI) if MONGO_URI else None
+_client: Optional[MongoClient] = None
+
+def _get_client() -> MongoClient:
+    global _client
+    if _client is None:
+        uri = os.getenv("MONGO_URI")
+        if not uri:
+            raise RuntimeError("MONGO_URI is not set")
+        _client = MongoClient(uri)
+    return _client
 
 
 def get_core_db():
