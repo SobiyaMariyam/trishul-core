@@ -18,7 +18,7 @@ async def tenancy_middleware(request: Request, call_next):
         m = re.match(pattern, host, flags=re.I)
         tenant = m.group(1) if m else None
 
-    open_paths = ["/health", "/signup", "/admin"]
+    open_paths = ["/", "/health", "/signup", "/admin"]
     if tenant is None and request.url.path in open_paths:
         return await call_next(request)
 
