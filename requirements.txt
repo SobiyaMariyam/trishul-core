@@ -3,3 +3,4 @@ fastapi
 starlette
 httpx
 pytest
+httpx>=0.24,<0.28
