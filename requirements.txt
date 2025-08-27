@@ -1,6 +1,9 @@
 # requirements.txt
 fastapi
 starlette
-httpx
-pytest
 httpx>=0.24,<0.28
+pytest
+passlib
+bcrypt
+pymongo
+PyJWT
