@@ -1,12 +1,15 @@
-﻿import re
+import re
 from fastapi import APIRouter, Depends, Header, HTTPException
-from app.auth.deps import get_current_claims
 
 router = APIRouter(prefix="/api", tags=["protected"])
 
 def _extract_tenant_from_host(host: str, local_domain: str = "lvh.me") -> str:
     # Accept both 'tenant.lvh.me' and 'tenant.lvh.me:8000'
-    m = re.match(rf"^([a-z0-9-]+)\.{re.escape(local_domain)}(:\d+)?$", host or "", flags=re.I)
+    m = re.match(
+        rf"^([a-z0-9-]+)\.{re.escape(local_domain)}(:\d+)?$",
+        host or "",
+        flags=re.I
+    )
     return m.group(1) if m else ""
 
 @router.get("/me")
