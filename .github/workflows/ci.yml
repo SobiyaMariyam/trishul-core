@@ -25,17 +25,21 @@ jobs:
           pip install fastapi uvicorn[standard] pymongo python-dotenv pydantic-settings passlib[bcrypt] pyjwt
           pip install ruff black mypy pytest httpx 
 
-      - name: Code checks and tests
+      - name: Format and lint checks
         run: |
           # Activate the virtual environment
           . .venv/bin/activate
           
-          # Run linting (ruff)
+          # Run linting (ruff) and apply fixes
           echo "Running Ruff checks..."
-          ruff check . --fix # The --fix flag modifies files
-          ruff check . # Re-run check to ensure there are no remaining errors
+          ruff check . --fix
+          ruff check .
           
-          # Run format check (black)
+          # Run Black to auto-format files
+          echo "Running Black auto-format..."
+          black .
+          
+          # Run Black check to ensure correct formatting
           echo "Running Black format check..."
           black --check .
           
