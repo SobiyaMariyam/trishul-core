@@ -49,4 +49,4 @@ jobs:
           
           # Run tests
           echo "Running Pytest..."
-          pytest -q
+          MONGO_URI="${{ secrets.MONGO_URI }}" pytest -q
