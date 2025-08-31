@@ -1,52 +1,24 @@
-name: CI
+﻿name: CI
+
 on:
   push:
-    branches: ["main"]
+    branches: [ main, feat/phase2.1-core ]
   pull_request:
-
-env:
-  PYTHONPATH: ${{ github.workspace }}
-  MONGO_URI: ${{ secrets.MONGO_URI }}
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: "3.11"
-
       - name: Install dependencies
         run: |
-          python -m venv .venv
-          . .venv/bin/activate
           python -m pip install --upgrade pip
-          pip install fastapi uvicorn[standard] pymongo python-dotenv pydantic-settings passlib[bcrypt] pyjwt
-          pip install ruff black mypy pytest httpx 
-
-      - name: Format and lint checks
+          pip install -r requirements.txt
+      - name: Run tests
         run: |
-          # Activate the virtual environment
-          . .venv/bin/activate
-          
-          # Run linting (ruff) and apply fixes
-          echo "Running Ruff checks..."
-          ruff check . --fix
-          ruff check .
-          
-          # Run Black to auto-format files
-          echo "Running Black auto-format..."
-          black .
-          
-          # Run Black check to ensure correct formatting
-          echo "Running Black format check..."
-          black --check .
-          
-          # Run type check (mypy)
-          echo "Running MyPy type check..."
-          mypy app
-          
-          # Run tests
-          echo "Running Pytest..."
-          MONGO_URI="${{ secrets.MONGO_URI }}" pytest -q
+          pytest -q

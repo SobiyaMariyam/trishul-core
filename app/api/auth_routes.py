@@ -1,39 +1,45 @@
-﻿from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
-from passlib.hash import bcrypt
-from app.db.manager import get_core_db
-from app.auth.tokens import create_token
+﻿from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel
+from typing import Dict
+
+from app.auth.jwt import create_access_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-class SignupIn(BaseModel):
-    username: str = Field(min_length=3)
-    password: str = Field(min_length=6)
-    tenant: str   = Field(min_length=2)
+# In-memory users for 2.1 acceptance tests ONLY.
+# Keys = (tenant, username)
+USERS: Dict[tuple, Dict[str, str]] = {
+    ("tenant1", "analyst"): {"password": "secret123", "role": "analyst"},
+    ("tenant1", "owner"): {"password": "secret123", "role": "owner"},
+    ("tenant1", "admin"): {"password": "secret123", "role": "admin"},
+}
 
 class LoginIn(BaseModel):
     username: str
     password: str
-    tenant: str
-
-@router.post("/signup")
-def signup(body: SignupIn):
-    core = get_core_db()
-    if core.users.find_one({"username": body.username, "tenant": body.tenant}):
-        raise HTTPException(status_code=400, detail="User already exists")
-    core.users.insert_one({
-        "username": body.username,
-        "tenant": body.tenant,
-        "password_hash": bcrypt.hash(body.password),
-        "roles": ["owner"],
-    })
-    return {"ok": True}
 
 @router.post("/login")
-def login(body: LoginIn):
-    core = get_core_db()
-    doc = core.users.find_one({"username": body.username, "tenant": body.tenant})
-    if not doc or not bcrypt.verify(body.password, doc.get("password_hash", "")):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    token = create_token({"sub": body.username, "tenant": body.tenant})
+async def login(payload: LoginIn, request: Request):
+    tenant = request.state.tenant
+    if not tenant:
+        # Must come via subdomain like tenant1.lvh.me
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="tenant not resolved from Host header",
+        )
+
+    key = (tenant, payload.username)
+    rec = USERS.get(key)
+    if not rec or rec["password"] != payload.password:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="invalid credentials",
+        )
+
+    token = create_access_token(
+        subject=payload.username,
+        tenant=tenant,
+        role=rec["role"],
+        expires_minutes=60,
+    )
     return {"access_token": token, "token_type": "bearer"}

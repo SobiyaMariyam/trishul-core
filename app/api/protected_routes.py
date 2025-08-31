@@ -1,27 +1,26 @@
-import re
-from fastapi import APIRouter, Depends, Header, HTTPException
-from app.auth.deps import get_current_claims
+﻿from fastapi import APIRouter, Request, HTTPException, status
+from app.auth.rbac import ensure_role
 
-router = APIRouter(prefix="/api", tags=["protected"])
+router = APIRouter(prefix="/admin", tags=["admin"])
 
-def _extract_tenant_from_host(host: str, local_domain: str = "lvh.me") -> str:
-    # Accept both 'tenant.lvh.me' and 'tenant.lvh.me:8000'
-    m = re.match(
-        rf"^([a-z0-9-]+)\.{re.escape(local_domain)}(:\d+)?$",
-        host or "",
-        flags=re.I
-    )
-    return m.group(1) if m else ""
+@router.get("/health")
+async def admin_health(request: Request):
+    # Must have decoded claims from tenancy middleware
+    claims = getattr(request.state, "claims", None)
+    if not claims:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="missing token")
 
-@router.get("/me")
-def me(
-    claims: dict = Depends(get_current_claims),
-    host: str = Header(default="", alias="host"),
-):
-    token_tenant = claims.get("tenant") or ""
-    host_tenant = _extract_tenant_from_host(host)
-    if not host_tenant:
-        raise HTTPException(status_code=400, detail="Missing or invalid Host header")
-    if token_tenant.lower() != host_tenant.lower():
-        raise HTTPException(status_code=403, detail="Tenant mismatch")
-    return {"user": claims.get("sub"), "tenant": token_tenant}
+    # Enforce role >= owner; convert any unexpected error into a clean 403
+    try:
+        ensure_role(claims, "owner")
+    except HTTPException as e:
+        # Expected 403 from RBAC
+        if e.status_code == status.HTTP_403_FORBIDDEN:
+            raise
+        # Any other HTTP error -> bubble
+        raise
+    except Exception as e:
+        # Unexpected error -> 403 with context (dev only)
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"role check failed: {e}")
+
+    return {"ok": True, "msg": f"admin health for tenant={getattr(request.state, 'tenant', None)}", "role": claims.get("role")}

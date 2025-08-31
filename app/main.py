@@ -1,20 +1,25 @@
 ﻿from fastapi import FastAPI, Request
-from app.middleware.tenancy import tenancy_middleware
-from app.api.auth_routes import router as auth_router
-from app.api.protected_routes import router as protected_router
+from app.middleware.tenancy_middleware import TenancyMiddleware
+from app.middleware.ratelimit import init_rate_limit, limiter
+from app.api import auth_routes, protected_routes
 
-app = FastAPI(title="Trishul Core API")
+app = FastAPI(title="Trishul Core")
 
-@app.middleware("http")
-async def tenancy(request: Request, call_next):
-    return await tenancy_middleware(request, call_next)
+# middleware
+app.add_middleware(TenancyMiddleware)
+init_rate_limit(app)
 
-# Public-ish (still tenant-scoped via Host): auth
-app.include_router(auth_router)
-
-# Protected endpoints
-app.include_router(protected_router)
-
+# Public
 @app.get("/health")
-def health():
+async def health():
     return {"ok": True}
+
+# Dummy endpoint with 5/min limit (must accept request for SlowAPI)
+@app.get("/dummy")
+@limiter.limit("5/minute")
+async def dummy(request: Request):
+    return {"ok": True, "msg": "dummy endpoint success"}
+
+# Routers
+app.include_router(auth_routes.router)
+app.include_router(protected_routes.router)
