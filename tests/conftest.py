@@ -45,9 +45,8 @@ def patch_db(monkeypatch):
 
         return DummyTenant()
 
-    # Patch both middleware and auth routes
-    monkeypatch.setattr("app.middleware.tenancy.get_core_db", fake_core_db)
-    monkeypatch.setattr("app.middleware.tenancy.get_tenant_db", fake_tenant_db)
-    monkeypatch.setattr("app.api.auth_routes.get_core_db", fake_core_db)
+    # Patch database functions at their source
     monkeypatch.setattr("app.db.manager.get_core_db", fake_core_db)
     monkeypatch.setattr("app.db.manager.get_tenant_db", fake_tenant_db)
+    monkeypatch.setattr("app.middleware.tenancy.get_core_db", fake_core_db)
+    monkeypatch.setattr("app.middleware.tenancy.get_tenant_db", fake_tenant_db)

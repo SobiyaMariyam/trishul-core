@@ -1,9 +1,25 @@
 ﻿from fastapi import APIRouter, Request, HTTPException, status
 from app.auth.rbac import ensure_role
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(prefix="/api", tags=["api"])
 
-@router.get("/health")
+@router.get("/me")
+async def get_me(request: Request):
+    # Must have decoded claims from tenancy middleware
+    claims = getattr(request.state, "claims", None)
+    if not claims:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="missing token")
+    
+    return {
+        "user": claims.get("sub"),
+        "tenant": claims.get("tid"), 
+        "role": claims.get("role")
+    }
+
+# Admin router (separate prefix)
+admin_router = APIRouter(prefix="/admin", tags=["admin"])
+
+@admin_router.get("/health")
 async def admin_health(request: Request):
     # Must have decoded claims from tenancy middleware
     claims = getattr(request.state, "claims", None)

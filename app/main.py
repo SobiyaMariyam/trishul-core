@@ -23,3 +23,4 @@ async def dummy(request: Request):
 # Routers
 app.include_router(auth_routes.router)
 app.include_router(protected_routes.router)
+app.include_router(protected_routes.admin_router)
