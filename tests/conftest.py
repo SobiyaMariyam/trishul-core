@@ -5,7 +5,7 @@ import os
 os.environ["CORE_DB"] = "test_core_db"
 os.environ["MONGO_URI"] = "mongodb://test:test@localhost:27017/test"
 os.environ["JWT_SECRET"] = "test-secret-key"
-os.environ["LOCAL_DOMAIN"] = "test.local"
+os.environ["LOCAL_DOMAIN"] = "lvh.me"
 
 
 @pytest.fixture(autouse=True)
@@ -14,13 +14,31 @@ def patch_db(monkeypatch):
     
     # Store users in memory for the test session
     test_users = {}
+    
+    # Pre-populate with test users
+    from passlib.context import CryptContext
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    
+    # Add the test user that the auth test expects
+    test_user = {
+        "username": "analyst",
+        "password": pwd_context.hash("secret123"),
+        "tenant": "tenant1",
+        "role": "analyst"
+    }
+    test_users["analyst_tenant1"] = test_user
 
     def fake_core_db():
         class DummyCore:
             def __init__(self):
                 class Tenants:
-                    def find_one(self, _query):
-                        return {"slug": "test", "status": "active"}
+                    def find_one(self, query):
+                        # Handle tenant lookup based on slug
+                        if query and "slug" in query:
+                            slug = query["slug"]
+                            if slug in ["test", "tenant1"]:
+                                return {"slug": slug, "status": "active"}
+                        return {"slug": "tenant1", "status": "active"}
 
                 class Users:
                     def find_one(self, query):
