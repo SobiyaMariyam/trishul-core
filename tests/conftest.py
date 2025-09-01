@@ -1,4 +1,11 @@
 import pytest
+import os
+
+# Set required environment variables for tests
+os.environ["CORE_DB"] = "test_core_db"
+os.environ["MONGO_URI"] = "mongodb://test:test@localhost:27017/test"
+os.environ["JWT_SECRET"] = "test-secret-key"
+os.environ["LOCAL_DOMAIN"] = "test.local"
 
 
 @pytest.fixture(autouse=True)
