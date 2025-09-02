@@ -1,4 +1,4 @@
-﻿from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request
 from app.middleware.tenancy_middleware import TenancyMiddleware
 from app.middleware.ratelimit import init_rate_limit, limiter
 from app.api import auth_routes, protected_routes, admin, kavach, rudra, trinetra, nandi

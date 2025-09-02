@@ -1,17 +1,20 @@
-﻿from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel
-from typing import Dict
+from datetime import datetime, timedelta
+from typing import Optional
 
-from app.auth.jwt import create_access_token
+from fastapi import APIRouter, HTTPException, status, Request
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+from jose import jwt
+
+from app.core.config import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# In-memory users for 2.1 acceptance tests ONLY.
-# Keys = (tenant, username)
-USERS: Dict[tuple, Dict[str, str]] = {
-    ("tenant1", "analyst"): {"password": "secret123", "role": "analyst"},
-    ("tenant1", "owner"): {"password": "secret123", "role": "owner"},
-    ("tenant1", "admin"): {"password": "secret123", "role": "admin"},
+# Minimal in-memory users for tests / local dev
+_USERS = {
+    # username: (password, role)
+    "analyst": ("secret123", "analyst"),
+    "owner": ("secret123", "owner"),
 }
 
 class LoginIn(BaseModel):
@@ -19,27 +22,28 @@ class LoginIn(BaseModel):
     password: str
 
 @router.post("/login")
-async def login(payload: LoginIn, request: Request):
-    tenant = request.state.tenant
+async def login(body: LoginIn, request: Request):
+    # Validate user
+    rec = _USERS.get(body.username)
+    if not rec or rec[0] != body.password:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid credentials")
+
+    role = rec[1]
+    tenant: Optional[str] = getattr(request.state, "tenant", None)
     if not tenant:
-        # Must come via subdomain like tenant1.lvh.me
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="tenant not resolved from Host header",
-        )
+        # For safety, require tenant on login so we can bind tid into JWT
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="missing tenant")
 
-    key = (tenant, payload.username)
-    rec = USERS.get(key)
-    if not rec or rec["password"] != payload.password:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="invalid credentials",
-        )
+    now = datetime.utcnow()
+    exp = now + timedelta(hours=4)
 
-    token = create_access_token(
-        subject=payload.username,
-        tenant=tenant,
-        role=rec["role"],
-        expires_minutes=60,
-    )
-    return {"access_token": token, "token_type": "bearer"}
+    claims = {
+        "sub": body.username,
+        "role": role,
+        "tid": tenant,                 # <<< bind JWT to tenant for middleware check
+        "iat": int(now.timestamp()),
+        "exp": int(exp.timestamp()),
+    }
+
+    token = jwt.encode(claims, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    return JSONResponse({"access_token": token, "token_type": "bearer"})

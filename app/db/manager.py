@@ -1,55 +1,21 @@
-"""Database manager utilities."""
-
-from __future__ import annotations
-
 import os
-from pathlib import Path
 from typing import Optional
-
 from pymongo import MongoClient
 
-# ---- Load .env manually ----
-PROJECT_ROOT = Path(__file__).resolve().parents[2]  # .../trishul
-ENV_PATH = PROJECT_ROOT / ".env"
-
-
-def _load_env_file(path: Path) -> None:
-    if not path.exists():
-        return
-    try:
-        text = path.read_text(encoding="utf-8-sig")
-    except Exception:
-        text = path.read_text(errors="ignore")
-    for raw in text.splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        k, v = line.split("=", 1)
-        os.environ.setdefault(k.strip(), v.strip().strip("'").strip('"'))
-
-
-# Load env vars
-_load_env_file(ENV_PATH)
-
-CORE_DB = os.getenv("CORE_DB", "trishul_core")
-
-# ---- Lazy client ----
 _client: Optional[MongoClient] = None
+_db = None
 
-
-def _get_client() -> MongoClient:
-    global _client
-    if _client is None:
-        uri = os.getenv("MONGO_URI")
-        if not uri:
-            raise RuntimeError("MONGO_URI is not set")
-        _client = MongoClient(uri)
-    return _client
-
-
-def get_core_db():
-    return _get_client()[CORE_DB]
-
-
-def get_tenant_db(tenant_slug: str):
-    return _get_client()[f"tenant_{tenant_slug}"]
+def get_db():
+    """
+    Lazy singleton DB handle.
+    Uses MONGO_URI (or mongodb://localhost:27017), DB_NAME=trishul by default.
+    """
+    global _client, _db
+    if _db is not None:
+        return _db
+    uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+    db_name = os.getenv("DB_NAME", "trishul")
+    # instantiate lazily, at first call (NOT at import)
+    _client = MongoClient(uri)
+    _db = _client[db_name]
+    return _db

@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, Request, HTTPException, status
+from fastapi import APIRouter, Request, HTTPException, status
 from app.auth.rbac import ensure_role
 
 router = APIRouter(prefix="/api", tags=["api"])

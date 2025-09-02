@@ -1,4 +1,4 @@
-﻿# app/services/kavach_runner.py
+# app/services/kavach_runner.py
 import base64
 import io
 import shutil

@@ -1,4 +1,4 @@
-﻿from fastapi import Header, HTTPException
+from fastapi import Header, HTTPException
 from typing import Optional
 from app.auth.tokens import verify_token
 

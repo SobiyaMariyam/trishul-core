@@ -1,4 +1,4 @@
-﻿# app/services/rudra_forecast.py
+# app/services/rudra_forecast.py
 from typing import List, Tuple
 from datetime import datetime, timezone
 from sklearn.linear_model import LinearRegression

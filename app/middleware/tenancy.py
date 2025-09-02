@@ -1,4 +1,4 @@
-﻿import os
+import os
 import re
 
 from fastapi import HTTPException, Request

@@ -1,4 +1,4 @@
-﻿import time
+import time
 import jwt
 from app.auth.config import JWT_SECRET, JWT_ALG
 
