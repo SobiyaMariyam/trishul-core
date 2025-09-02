@@ -1,24 +1,35 @@
-﻿name: CI
+name: CI
 
 on:
   push:
-    branches: [ main, feat/phase2.1-core ]
+    branches: ['**']
   pull_request:
-    branches: [ main ]
+    branches: ['**']
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
+          cache: 'pip'
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            pip install fastapi "uvicorn[standard]" pymongo pytest httpx python-multipart pydantic itsdangerous email-validator
+          fi
+
       - name: Run tests
-        run: |
-          pytest -q
+        env:
+          USE_INMEMORY_QC: '1'
+          MONGO_URI: 'mongodb://invalid:27017'
+          DB_NAME: 'trishul'
+        run: pytest -q
