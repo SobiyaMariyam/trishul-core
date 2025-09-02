@@ -1,0 +1,188 @@
+﻿{
+  "info": {
+    "name": "Trishul Phase-2",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST /auth/login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Host", "value": "{{host}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/auth/login",
+            "body": { "mode": "raw", "raw": "{\"username\":\"owner\",\"password\":\"owner\"}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', function(){ pm.response.to.have.status(200); });",
+                  "try {",
+                  "  var data = pm.response.json();",
+                  "  if (data && data.token) { pm.environment.set('token', data.token); }",
+                  "} catch(e) {}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Kavach",
+      "item": [
+        {
+          "name": "POST /kavach/scan/start",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Host", "value": "{{host}}" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/kavach/scan/start"
+          }
+        },
+        {
+          "name": "GET /kavach/scan/history",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Host", "value": "{{host}}" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/kavach/scan/history"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Rudra",
+      "item": [
+        {
+          "name": "POST /rudra/cloud/mock-usage",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Host", "value": "{{host}}" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/rudra/cloud/mock-usage",
+            "body": { "mode": "raw", "raw": "{\"usage\":[20,25,30,33,31]}" }
+          }
+        },
+        {
+          "name": "GET /rudra/cloud/forecast",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Host", "value": "{{host}}" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/rudra/cloud/forecast"
+          }
+        },
+        {
+          "name": "GET /rudra/cloud/configcheck",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Host", "value": "{{host}}" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/rudra/cloud/configcheck"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Trinetra",
+      "item": [
+        {
+          "name": "POST /trinetra/qc/upload (form-data)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Host", "value": "{{host}}" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/trinetra/qc/upload",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "image", "type": "file", "src": "tiny.jpg" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /trinetra/qc/results",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Host", "value": "{{host}}" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/trinetra/qc/results"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "GET /admin/stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Host", "value": "{{host}}" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/admin/stats"
+          }
+        },
+        {
+          "name": "GET /admin/health",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Host", "value": "{{host}}" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/admin/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Nandi",
+      "item": [
+        {
+          "name": "POST /nandi/send",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Host", "value": "{{host}}" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/nandi/send",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"to\":\"demo@example.com\",\"subject\":\"Hello from Nandi\",\"body\":\"This is a test message.\"}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

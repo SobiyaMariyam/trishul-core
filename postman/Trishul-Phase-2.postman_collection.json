@@ -1,0 +1,249 @@
+﻿{
+  "info": {
+    "name": "Trishul Phase-2",
+    "_postman_id": "e7f0f0f0-1111-2222-3333-444455556666",
+    "description": "Phase 2.3 collection: Auth, Kavach, Rudra, Trinetra, Admin, Nandi",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.environment.get('token')) {",
+          "  pm.sendRequest({",
+          "    url: pm.environment.get('base_url') + '/auth/login',",
+          "    method: 'POST',",
+          "    header: { 'Content-Type': 'application/json', 'Host': pm.environment.get('host') },",
+          "    body: { mode: 'raw', raw: JSON.stringify({ username: 'owner', password: 'owner' }) }",
+          "  }, (err, res) => {",
+          "    if (!err && res && res.code === 200) {",
+          "      try {",
+          "        const t = res.json().token;",
+          "        if (t) pm.environment.set('token', t);",
+          "      } catch(e) {}",
+          "    }",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "{{base_url}}" },
+    { "key": "host", "value": "{{host}}" },
+    { "key": "token", "value": "{{token}}" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST /auth/login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Host", "value": "{{host}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth","login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"owner\",\n  \"password\": \"owner\"\n}" }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "pm.test('status 200', () => pm.response.code === 200);",
+              "const j = pm.response.json();",
+              "pm.test('has token', () => j && j.token);",
+              "if (j && j.token) pm.environment.set('token', j.token);"
+            ], "type":"text/javascript" }
+          }]
+        }
+      ]
+    },
+    {
+      "name": "Kavach",
+      "item": [
+        {
+          "name": "POST /kavach/scan/start",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Host", "value": "{{host}}" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/kavach/scan/start", "host": ["{{base_url}}"], "path": ["kavach","scan","start"] }
+          },
+          "event": [{ "listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('status 200/202', ()=> [200,202].includes(pm.response.code));"
+          ]}}]
+        },
+        {
+          "name": "GET /kavach/scan/history",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Host", "value": "{{host}}" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/kavach/scan/history", "host": ["{{base_url}}"], "path": ["kavach","scan","history"] }
+          },
+          "event": [{ "listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('status 200', ()=> pm.response.code === 200);",
+            "const j = pm.response.json();",
+            "pm.test('is array', ()=> Array.isArray(j));"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "Rudra",
+      "item": [
+        {
+          "name": "POST /rudra/cloud/mock-usage",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Host", "value": "{{host}}" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/rudra/cloud/mock-usage", "host": ["{{base_url}}"], "path": ["rudra","cloud","mock-usage"] },
+            "body": { "mode": "raw", "raw": "{\n  \"usage\": [20,25,30,33,31]\n}" }
+          },
+          "event": [{ "listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('status 200', ()=> pm.response.code === 200);"
+          ]}}]
+        },
+        {
+          "name": "GET /rudra/cloud/forecast",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Host", "value": "{{host}}" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/rudra/cloud/forecast", "host": ["{{base_url}}"], "path": ["rudra","cloud","forecast"] }
+          },
+          "event": [{ "listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('status 200', ()=> pm.response.code === 200);",
+            "const j = pm.response.json();",
+            "const arr = Array.isArray(j) ? j : (j && j.forecast) || [];",
+            "pm.test('non-negative numbers', ()=> arr.every(v => typeof v === 'number' && v >= 0));"
+          ]}}]
+        },
+        {
+          "name": "GET /rudra/cloud/configcheck",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Host", "value": "{{host}}" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/rudra/cloud/configcheck", "host": ["{{base_url}}"], "path": ["rudra","cloud","configcheck"] }
+          },
+          "event": [{ "listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('status 200', ()=> pm.response.code === 200);"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "Trinetra",
+      "item": [
+        {
+          "name": "POST /trinetra/qc/upload (form-data)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Host", "value": "{{host}}" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/trinetra/qc/upload", "host": ["{{base_url}}"], "path": ["trinetra","qc","upload"] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "image", "type": "file", "src": "" }
+              ]
+            },
+            "description": "Pick any small jpg/png as sample"
+          },
+          "event": [{ "listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('status 200', ()=> pm.response.code === 200);"
+          ]}}]
+        },
+        {
+          "name": "GET /trinetra/qc/results",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Host", "value": "{{host}}" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/trinetra/qc/results", "host": ["{{base_url}}"], "path": ["trinetra","qc","results"] }
+          },
+          "event": [{ "listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('status 200', ()=> pm.response.code === 200);",
+            "const j = pm.response.json();",
+            "const arr = Array.isArray(j) ? j : (j && j.results) || [];",
+            "pm.test('has at least one', ()=> Array.isArray(arr) && arr.length >= 1);"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "GET /admin/stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Host", "value": "{{host}}" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/admin/stats", "host": ["{{base_url}}"], "path": ["admin","stats"] }
+          },
+          "event": [{ "listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('status 200', ()=> pm.response.code === 200);"
+          ]}}]
+        },
+        {
+          "name": "GET /admin/health",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Host", "value": "{{host}}" }
+            ],
+            "url": { "raw": "{{base_url}}/admin/health", "host": ["{{base_url}}"], "path": ["admin","health"] }
+          },
+          "event": [{ "listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('status 200', ()=> pm.response.code === 200);"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "Nandi",
+      "item": [
+        {
+          "name": "POST /nandi/send",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Host", "value": "{{host}}" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/nandi/send", "host": ["{{base_url}}"], "path": ["nandi","send"] },
+            "body": { "mode": "raw", "raw": "{\n  \"to\": \"demo@example.com\",\n  \"subject\": \"Hello from Nandi\",\n  \"body\": \"This is a demo send (mock).\"\n}" }
+          },
+          "event": [{ "listen":"test","script":{"type":"text/javascript","exec":[
+            "pm.test('status 200', ()=> pm.response.code === 200);"
+          ]}}]
+        }
+      ]
+    }
+  ]
+}
