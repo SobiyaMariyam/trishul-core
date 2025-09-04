@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, status, Request
@@ -13,8 +13,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # Minimal in-memory users for tests / local dev
 _USERS = {
     # username: (password, role)
-    "analyst": ("analyst", "analyst"),
-    "owner": ("owner", "owner"),
+    "analyst": ("secret123", "analyst"),
+    "owner": ("secret123", "owner"),
 }
 
 class LoginIn(BaseModel):
@@ -47,4 +47,3 @@ async def login(body: LoginIn, request: Request):
 
     token = jwt.encode(claims, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return JSONResponse({"access_token": token, "token_type": "bearer"})
-
