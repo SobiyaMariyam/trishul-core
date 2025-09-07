@@ -136,9 +136,35 @@ import Api from '@/api';
 await Api.kavach.createScan(file);
 await Api.rudra.getForecast(months);
 await Api.trinetra.inferImage(file);
+```
 
-// Future real API (one-line change)
-// import Api from '@/api/backend';
+### Backend Integration (One-Line Switch)
+When real APIs are ready, switch by running:
+```bash
+# Linux/Mac
+./scripts/switch-to-backend.sh
+
+# Windows
+.\scripts\switch-to-backend.ps1
+
+# Manual approach
+# Update src/api/index.ts imports:
+# import { kavachApi } from "./backend/kavach";
+# import { rudraApi } from "./backend/rudra";  
+# import { trinetraApi } from "./backend/trinetra";
+```
+
+### File Structure
+```
+src/api/
+├── index.ts           # Main API exports (switch point)
+├── kavach.ts          # Mock Kavach API
+├── rudra.ts           # Mock Rudra API  
+├── trinetra.ts        # Mock Trinetra API
+└── backend/           # Real API implementations (Phase 3)
+    ├── kavach.ts      # Real Kavach API calls
+    ├── rudra.ts       # Real Rudra API calls
+    └── trinetra.ts    # Real Trinetra API calls
 ```
 
 ### Type-Safe Interfaces

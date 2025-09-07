@@ -69,7 +69,3 @@ jobs:
         name: dist-files
         path: ./prototype/ui/dist/
         retention-days: 7
-
-    - name: Switch to real APIs
-      run: |
-        sed -i 's|import Api from @/api|import Api from @/api/backend|' src/path/to/your/file.js
