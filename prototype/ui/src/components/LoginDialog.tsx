@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,6 +21,13 @@ export const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
   const [organization, setOrganization] = useState("");
   const { toast } = useToast();
   const emailInputRef = useRef<HTMLInputElement>(null);
+
+  // Define handleCancel early to use in useEffect
+  const handleCancel = useCallback(() => {
+    onOpenChange(false);
+    setEmail("");
+    setOrganization("");
+  }, [onOpenChange]);
 
   // Focus management
   useEffect(() => {
@@ -47,7 +54,7 @@ export const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
     return () => {
       document.removeEventListener("keydown", handleEscape);
     };
-  }, [open]);
+  }, [open, handleCancel]);
 
   const handleSave = () => {
     if (!email || !organization) {
@@ -68,12 +75,6 @@ export const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
       description: `Welcome ${organization}! Your information has been stored locally.`,
     });
 
-    onOpenChange(false);
-    setEmail("");
-    setOrganization("");
-  };
-
-  const handleCancel = () => {
     onOpenChange(false);
     setEmail("");
     setOrganization("");
