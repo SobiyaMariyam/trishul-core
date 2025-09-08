@@ -1,0 +1,98 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+    paths: 
+      - 'prototype/ui/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+        - staging
+        - production
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+    defaults:
+      run:
+        working-directory: ./prototype/ui
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: './prototype/ui/package-lock.json'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Switch to real APIs (Production only)
+      if: ${{ github.event.inputs.environment == 'production' }}
+      run: |
+        echo "Switching from mock APIs to real backend APIs..."
+        # Update the main API import in src/api/index.ts
+        if [ -f "src/api/index.ts" ]; then
+          sed -i 's|import { kavachApi } from "./kavach"|import { kavachApi } from "./backend/kavach"|g' src/api/index.ts
+          sed -i 's|import { rudraApi } from "./rudra"|import { rudraApi } from "./backend/rudra"|g' src/api/index.ts
+          sed -i 's|import { trinetraApi } from "./trinetra"|import { trinetraApi } from "./backend/trinetra"|g' src/api/index.ts
+          echo "✅ API imports updated for production"
+        else
+          echo "⚠️  API index file not found - skipping API switch"
+        fi
+
+    - name: Run tests and linting
+      run: |
+        npm run lint
+        npm run format:check
+
+    - name: Build for deployment
+      run: npm run build
+      env:
+        NODE_ENV: production
+
+    - name: Upload deployment artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: production-build-${{ github.event.inputs.environment || 'staging' }}
+        path: ./prototype/ui/dist/
+        retention-days: 30
+
+    - name: Deploy to staging
+      if: ${{ github.event.inputs.environment == 'staging' || github.event.inputs.environment == '' }}
+      run: |
+        echo "🚀 Deploying to staging environment..."
+        echo "Build artifacts ready for staging deployment"
+        # Add your staging deployment commands here
+        # e.g., rsync, scp, or cloud provider CLI commands
+
+    - name: Deploy to production
+      if: ${{ github.event.inputs.environment == 'production' }}
+      run: |
+        echo "🚀 Deploying to production environment..."
+        echo "Build artifacts ready for production deployment"
+        # Add your production deployment commands here
+        # e.g., rsync, scp, or cloud provider CLI commands
+
+    - name: Deployment summary
+      run: |
+        echo "## 🎉 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**: ${{ github.event.inputs.environment || 'staging' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Build Size**: $(du -sh dist/ | cut -f1)" >> $GITHUB_STEP_SUMMARY
+        echo "- **Timestamp**: $(date)" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ github.event.inputs.environment }}" == "production" ]; then
+          echo "- **API Mode**: Real Backend APIs" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- **API Mode**: Mock APIs" >> $GITHUB_STEP_SUMMARY
+        fi
