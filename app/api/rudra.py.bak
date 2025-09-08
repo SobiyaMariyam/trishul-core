@@ -25,14 +25,3 @@ async def forecast(request: Request, db = Depends(get_db)):
     # Keep forecast non-negative (matches the test intent)
     forecast_vals = [max(0, x) for x in usage] if usage else [0]
     return {"forecast": forecast_vals}
-from datetime import datetime
-from fastapi import Request, Depends
-from app.deps import get_db
-
-@router.post("/rudra/cloud/forecast/save")
-async def cloud_forecast_save(request: Request, db=Depends(get_db)):
-    tenant = (getattr(getattr(request, "state", None), "tenant", None) or request.headers.get("Host","default")).split(".")[0]
-    series = [10, 12, 8, 15, 9, 11]
-    avg = sum(series) / len(series) if series else 0.0
-    db[f"{tenant}_rudra_forecasts"].insert_one({"value": float(avg), "series": series, "ts": datetime.utcnow().isoformat()+"Z"})
-    return {"saved": True, "avg": float(avg), "series": series}

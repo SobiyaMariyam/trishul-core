@@ -1,7 +1,4 @@
-﻿from xhtml2pdf import pisa
-from io import BytesIO
-from fastapi import Response
-from fastapi import APIRouter, Depends, Request
+﻿from fastapi import APIRouter, Depends, Request
 from app.deps import get_db
 from bson.json_util import dumps
 from starlette.responses import Response
@@ -73,18 +70,3 @@ async def kavach_report_latest(request: Request, db=Depends(get_db)):
         return {"ok": False, "detail": "no report"}
     # return html inline so you can screenshot proof
     return {"ok": True, "ts": latest.get("ts"), "preview": latest.get("html")}
-
-@router.get("/kavach/report/pdf")
-async def kavach_report_pdf(request: Request, db=Depends(get_db)):
-    tenant = (getattr(getattr(request, "state", None), "tenant", None) or request.headers.get("Host","default")).split(".")[0]
-    doc = db[f"{tenant}_kavach_reports"].find_one(sort=[("ts",-1)])
-    if not doc or "html" not in doc:
-        return JSONResponse({"detail": "no report"}, status_code=404)
-    html = doc["html"] if isinstance(doc["html"], str) else str(doc["html"])
-    buf = BytesIO()
-    pdf_ok = pisa.CreatePDF(html, dest=buf)
-    if pdf_ok.err:
-        return JSONResponse({"detail": "pdf generation failed"}, status_code=500)
-    return Response(content=buf.getvalue(),
-                    media_type="application/pdf",
-                    headers={"Content-Disposition": f'attachment; filename="kavach_{tenant}.pdf"'})

@@ -1,30 +1,45 @@
-from fastapi import FastAPI, Request
+﻿from bson import json_util
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.errors import RateLimitExceeded
+
 from app.middleware.tenancy_middleware import TenancyMiddleware
-from app.middleware.ratelimit import init_rate_limit, limiter
+from app.middleware.ratelimit import limiter, init_rate_limit
 from app.api import auth_routes, protected_routes, admin, kavach, rudra, trinetra, nandi
 
-app = FastAPI(title="Trishul Core")
+# Try known handler names; fall back to a tiny custom one
+try:
+    from slowapi.errors import rate_limit_exceeded_handler as rate_limit_handler
+except Exception:
+    try:
+        from slowapi.errors import _rate_limit_exceeded_handler as rate_limit_handler
+    except Exception:
+        async def rate_limit_handler(request, exc):
+            return JSONResponse({"detail": "Rate limit exceeded"}, status_code=429)
 
-# middleware
+class MongoJSONResponse(JSONResponse):
+    def render(self, content) -> bytes:
+        return json_util.dumps(content).encode("utf-8")
+
+app = FastAPI(default_response_class=MongoJSONResponse, title="Trishul Core")
+
+# Rate limit + tenancy middleware
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
+app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
 app.add_middleware(TenancyMiddleware)
 init_rate_limit(app)
 
-# Public
 @app.get("/health")
 async def health():
     return {"ok": True}
 
-# Dummy endpoint with 5/min limit
-@app.get("/dummy")
-@limiter.limit("5/minute")
-async def dummy(request: Request):
-    return {"ok": True, "msg": "dummy endpoint success"}
-
 # Routers
-app.include_router(auth_routes.router)       # /auth/*
-app.include_router(protected_routes.router)  # /admin/health etc.
-app.include_router(admin.router)             # /admin/stats
-app.include_router(kavach.router)            # /kavach/*
-app.include_router(rudra.router)             # /rudra/*
-app.include_router(trinetra.router)          # /trinetra/*
-app.include_router(nandi.router)             # /nandi/*
+app.include_router(auth_routes.router)
+app.include_router(protected_routes.router)
+app.include_router(admin.router)
+app.include_router(kavach.router)
+app.include_router(rudra.router)
+app.include_router(trinetra.router)
+app.include_router(nandi.router)
