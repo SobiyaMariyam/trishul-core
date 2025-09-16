@@ -6,3 +6,11 @@ __pycache__/
 .vscode/
 
 backup_untracked_*/
+# sprint 2.5
+logs/
+*.bak
+*.pdf
+resp*.json
+payload*.json
+login.json
+api.json

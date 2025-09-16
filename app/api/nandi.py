@@ -46,7 +46,6 @@ async def nandi_email_outbox(request: Request, db=Depends(get_db)):
     docs = list(col.find().sort("ts",-1).limit(10))
     return {"outbox": docs}
 from fastapi import Body
-
 @router.post("/nandi/notify")
 async def nandi_notify(payload: dict = Body(...)):
     """
@@ -86,3 +85,18 @@ async def nandi_notify(payload: dict = Body(...)):
         return {"sent": ok, "status": resp.status_code}
     except Exception as e:
         return {"sent": False, "error": str(e)}
+
+# --- pagination wiring ---
+from app.common.params import LimitParam, SkipParam, clamp_limit_skip
+
+# ensure headers even if code path returns early
+def _set_paging_headers(response, limit, skip):
+    try:
+        L,S = clamp_limit_skip(limit, skip)
+        response.headers["X-Limit"] = str(L)
+        response.headers["X-Skip"]  = str(S)
+    except Exception:
+        pass
+
+# NOTE: If nandi_events returns directly, FastAPI will still carry the headers we set above
+

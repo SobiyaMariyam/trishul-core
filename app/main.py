@@ -1,5 +1,8 @@
 ﻿from bson import json_util
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
@@ -22,7 +25,18 @@ class MongoJSONResponse(JSONResponse):
     def render(self, content) -> bytes:
         return json_util.dumps(content).encode("utf-8")
 
+load_dotenv()
 app = FastAPI(default_response_class=MongoJSONResponse, title="Trishul Core")
+# --- CORS (strict) ---
+_allowed = os.getenv("ALLOWED_ORIGINS", "").split(",") if os.getenv("ALLOWED_ORIGINS") else []
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[o.strip() for o in _allowed if o.strip()],
+    allow_credentials=True,
+    allow_methods=["GET","POST","PUT","DELETE","OPTIONS"],
+    allow_headers=["Authorization","Content-Type","Origin","Accept"],
+)
+# --- end CORS ---
 
 # Rate limit + tenancy middleware
 app.state.limiter = limiter
@@ -43,3 +57,9 @@ app.include_router(kavach.router)
 app.include_router(rudra.router)
 app.include_router(trinetra.router)
 app.include_router(nandi.router)
+
+# --- Observability (request IDs + audit log) ---
+from app.common.observability import RequestAuditMiddleware
+app.add_middleware(RequestAuditMiddleware)
+
+

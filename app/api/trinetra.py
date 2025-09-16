@@ -39,11 +39,6 @@ async def qc_results(
     # IMPORTANT: return a raw list as the tests expect
     return Response(dumps(list(repo.list(tenant))), media_type="application/json")
 
-
-
-
-
-
 from fastapi import Body
 from bson.json_util import dumps
 from starlette.responses import Response
@@ -58,3 +53,15 @@ async def trinetra_qc_seed(request: Request, db=Depends(get_db), items: list[dic
         items = [items]
     res = col.insert_many(items)
     return Response(dumps({"inserted": len(res.inserted_ids)}), media_type="application/json")
+
+# --- pagination for QC results ---
+from app.common.params import LimitParam, SkipParam, clamp_limit_skip
+
+def _qc_set_paging_headers(response, limit, skip):
+    try:
+        L,S = clamp_limit_skip(limit, skip)
+        response.headers["X-Limit"] = str(L)
+        response.headers["X-Skip"]  = str(S)
+    except Exception:
+        pass
+
