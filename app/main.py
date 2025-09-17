@@ -1,4 +1,5 @@
-﻿from bson import json_util
+﻿from prometheus_fastapi_instrumentator import Instrumentator
+from bson import json_util
 import os
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -59,7 +60,8 @@ app.include_router(trinetra.router)
 app.include_router(nandi.router)
 
 # --- Observability (request IDs + audit log) ---
-from app.common.observability import RequestAuditMiddleware
-app.add_middleware(RequestAuditMiddleware)
+from app.common.observability import setup_logging, ObservabilityMiddleware
+app.add_middleware(ObservabilityMiddleware)
+
 
 

@@ -1,62 +1,36 @@
-﻿import uuid
-import logging, os
-from logging.handlers import RotatingFileHandler
+﻿import logging, re, time, uuid
 from contextvars import ContextVar
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp
+from fastapi import Request, Response
 
-# Context: request id for log records
-request_id_ctx: ContextVar[str] = ContextVar("request_id", default="-")
+rid=ContextVar("rid", default="-"); tenant=ContextVar("tenant", default="-"); user=ContextVar("user", default="-")
 
-# Single logger for the app
-_LOGGER = None
-def get_logger():
-    global _LOGGER
-    if _LOGGER:
-        return _LOGGER
-    os.makedirs("logs", exist_ok=True)
-    logger = logging.getLogger("trishul")
-    logger.setLevel(logging.INFO)
-    h = RotatingFileHandler("logs/trishul.log", maxBytes=1_000_000, backupCount=3, encoding="utf-8")
-    f = logging.Formatter("%(asctime)s %(levelname)s rid=%(request_id)s tenant=%(tenant)s user=%(user)s %(message)s")
-    h.setFormatter(f)
-    class Ctx(logging.Filter):
-        def filter(self, record):
-            try:
-                record.request_id = request_id_ctx.get()
-            except Exception:
-                record.request_id = "-"
-            if not hasattr(record, "tenant"): record.tenant = "-"
-            if not hasattr(record, "user"):   record.user   = "-"
-            return True
-    logger.addHandler(h)
-    logger.addFilter(Ctx())
-    _LOGGER = logger
-    return logger
+class Ctx(logging.Filter):
+    def filter(self, r): r.rid=rid.get("-"); r.tenant=tenant.get("-"); r.user=user.get("-"); return True
 
-class RequestAuditMiddleware(BaseHTTPMiddleware):
-    """Adds X-Request-ID and writes one audit line per request."""
-    def __init__(self, app: ASGIApp):
-        super().__init__(app)
-        self.logger = get_logger()
+def setup_logging():
+    f=Ctx()
+    for n in ("", "uvicorn", "uvicorn.error", "uvicorn.access"):
+        lg=logging.getLogger(n); lg.setLevel(logging.INFO); lg.addFilter(f)
+        for h in lg.handlers: h.addFilter(f)
 
-    async def dispatch(self, request, call_next):
-        rid = request.headers.get("X-Request-ID") or str(uuid.uuid4())
-        tok = request_id_ctx.set(rid)
-        tenant = (getattr(getattr(request, "state", None), "tenant", None) or request.headers.get("Host","default")).split(".")[0]
-        user   = getattr(getattr(request, "state", None), "user", "-")
+TENANT_RE=re.compile(r"^(?P<t>[^.]+)\.(?:lvh\.me|trishul\.cloud)(?::\d+)?$", re.I)
+
+def parse_tenant(h): 
+    if not h: return "-"
+    m=TENANT_RE.match(h.strip()); return m.group("t") if m else "-"
+
+class ObservabilityMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, req: Request, call_next):
+        rid.set(req.headers.get("x-request-id") or str(uuid.uuid4()))
+        tenant.set(parse_tenant(req.headers.get("host"))); user.set("-")
+        t=time.perf_counter()
+        logging.getLogger(__name__).info("request %s %s", req.method, req.url.path)
         try:
-            response = await call_next(request)
-            status = getattr(response, "status_code", 200)
+            resp: Response = await call_next(req)
         except Exception:
-            status = 500
-            self.logger.exception("unhandled error", extra={"tenant": tenant, "user": user})
-            request_id_ctx.reset(tok)
-            raise
-        request_id_ctx.reset(tok)
-        # audit line
-        self.logger.info("request %s %s -> %s", request.method, request.url.path, status,
-                         extra={"tenant": tenant, "user": user})
-        # echo header
-        response.headers["X-Request-ID"] = rid
-        return response
+            logging.getLogger(__name__).exception("unhandled exception"); raise
+        resp.headers["X-Request-ID"]=rid.get("-")
+        logging.getLogger(__name__).info("response %s %s -> %s in %dms",
+            req.method, req.url.path, resp.status_code, int((time.perf_counter()-t)*1000))
+        return resp
