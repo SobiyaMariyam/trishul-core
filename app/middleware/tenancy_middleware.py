@@ -1,10 +1,10 @@
-from fastapi import Request, status
+﻿from fastapi import Request, status, HTTPException
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from fastapi.exceptions import HTTPException
 from jose import jwt, JWTError
 
 from app.core.config import settings
+from app.auth.rbac import ensure_role
 
 
 def decode_token(token: str):
@@ -18,13 +18,10 @@ def _extract_tenant_from_host(host: str, local_domain: str) -> str | None:
     if not host:
         return None
     host = host.lower()
-    # If host ends with our local dev domain (e.g., lvh.me), use the subdomain as tenant.
     if host.endswith(local_domain):
-        sub = host.replace(f".{local_domain}", "")
-        # Handle cases like "tenant1.lvh.me" (sub="tenant1") vs "lvh.me" (no tenant)
+        sub = host.removesuffix(f".{local_domain}")
         if sub and sub != local_domain:
             return sub.split(".")[0]
-    # For other environments you might parse differently; for tests we only need the above.
     return None
 
 
@@ -41,7 +38,7 @@ class TenancyMiddleware(BaseHTTPMiddleware):
         # Default: no claims
         request.state.claims = None
 
-        # Try decode JWT if provided
+        # Decode JWT if provided
         auth = request.headers.get("authorization", "")
         if auth.lower().startswith("bearer "):
             token = auth.split(" ", 1)[1].strip()
@@ -54,14 +51,26 @@ class TenancyMiddleware(BaseHTTPMiddleware):
                     content={"detail": f"invalid token: {exc}"},
                 )
 
-        # Enforce tenant match ONLY if token actually has a non-empty 'tid' claim.
+        # Enforce tenant match ONLY if token has a non-empty 'tid'
         if tenant and request.state.claims:
             tid = str(request.state.claims.get("tid", "") or "").strip().lower()
-            if tid:  # only enforce when present
-                if tid != tenant.lower():
-                    return JSONResponse(
-                        status_code=status.HTTP_401_UNAUTHORIZED,
-                        content={"detail": "token tenant mismatch"},
-                    )
+            if tid and tid != tenant.lower():
+                return JSONResponse(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    content={"detail": "token tenant mismatch"},
+                )
 
+        # Admin paths require owner role
+        if request.url.path.startswith("/admin"):
+            if not request.state.claims:
+                return JSONResponse(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    content={"detail": "missing token"},
+                )
+            try:
+                ensure_role(request.state.claims, "owner")
+            except HTTPException as e:
+                return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
+
+        # Always return downstream response
         return await call_next(request)
