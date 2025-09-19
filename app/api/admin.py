@@ -92,3 +92,14 @@ async def admin_indexes_list(request: Request, db=Depends(get_db)):
     cols = [f"{tenant}_scans", f"{tenant}_qc_results", f"{tenant}_rudra_forecasts", f"{tenant}_nandi", f"{tenant}_users"]
     info = {name: db[name].index_information() for name in cols}
     return {"ok": True, "indexes": info}
+from fastapi import Request, HTTPException, status
+from app.auth.rbac import ensure_role
+
+# secure override: require bearer + owner role
+@router.get("/admin/health")
+async def health_check(request: Request):
+    claims = getattr(request.state, "claims", None)
+    if not claims:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="missing token")
+    ensure_role(claims, "owner")
+    return {"status": "ok"}

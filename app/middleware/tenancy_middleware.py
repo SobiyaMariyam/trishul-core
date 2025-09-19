@@ -7,9 +7,15 @@ from app.core.config import settings
 from app.auth.rbac import ensure_role
 
 
-def decode_token(token: str):
+def decode_token(token: str, expected_aud: str | None = None):
     try:
-        return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        return jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM],
+            audience=expected_aud if expected_aud else None,
+            options={"verify_aud": expected_aud is not None}
+        )
     except JWTError as exc:
         raise Exception(f"invalid token: {exc}")
 
@@ -43,7 +49,7 @@ class TenancyMiddleware(BaseHTTPMiddleware):
         if auth.lower().startswith("bearer "):
             token = auth.split(" ", 1)[1].strip()
             try:
-                claims = decode_token(token)
+                claims = decode_token(token, tenant)
                 request.state.claims = claims
             except Exception as exc:
                 return JSONResponse(
@@ -74,3 +80,5 @@ class TenancyMiddleware(BaseHTTPMiddleware):
 
         # Always return downstream response
         return await call_next(request)
+
+

@@ -1,16 +1,18 @@
-﻿from prometheus_fastapi_instrumentator import Instrumentator
+﻿from fastapi.middleware.cors import CORSMiddleware
+from app.api import _refresh_diag
+from app.common.observability import setup_logging, ObservabilityMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 from bson import json_util
 import os
 from dotenv import load_dotenv
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
 
 from app.middleware.tenancy_middleware import TenancyMiddleware
 from app.middleware.ratelimit import limiter, init_rate_limit
-from app.api import auth_routes, protected_routes, admin, kavach, rudra, trinetra, nandi
+from app.api import auth_routes, protected_routes, admin, kavach, rudra, trinetra, nandi, auth_refresh
 
 # Try known handler names; fall back to a tiny custom one
 try:
@@ -27,6 +29,7 @@ class MongoJSONResponse(JSONResponse):
         return json_util.dumps(content).encode("utf-8")
 
 load_dotenv()
+setup_logging()
 app = FastAPI(default_response_class=MongoJSONResponse, title="Trishul Core")
 # --- CORS (strict) ---
 _allowed = os.getenv("ALLOWED_ORIGINS", "").split(",") if os.getenv("ALLOWED_ORIGINS") else []
@@ -34,8 +37,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in _allowed if o.strip()],
     allow_credentials=True,
-    allow_methods=["GET","POST","PUT","DELETE","OPTIONS"],
-    allow_headers=["Authorization","Content-Type","Origin","Accept"],
+    allow_methods=["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["X-Request-ID"],
 )
 # --- end CORS ---
 
@@ -51,6 +55,7 @@ async def health():
     return {"ok": True}
 
 # Routers
+from app.api.auth_refresh import router as auth_refresh_router
 app.include_router(auth_routes.router)
 app.include_router(protected_routes.router)
 app.include_router(admin.router)
@@ -64,4 +69,44 @@ from app.common.observability import setup_logging, ObservabilityMiddleware
 app.add_middleware(ObservabilityMiddleware)
 
 
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[o.strip() for o in _allowed if o.strip()],
+    allow_credentials=True,
+    allow_methods=["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["X-Request-ID"],
+)
+Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+
+
+
+
+
+
+
+
+app.include_router(auth_refresh.router)
+
+
+app.include_router(_refresh_diag.router)
+
+from fastapi.middleware.cors import CORSMiddleware
+
+_ALLOWED_ORIGINS = [
+    "https://app.trishul.cloud",
+    "http://localhost:3000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
+    allow_headers=["Authorization","Content-Type","X-Requested-With"],
+    expose_headers=["X-Request-ID"],
+    max_age=600,
+)
 

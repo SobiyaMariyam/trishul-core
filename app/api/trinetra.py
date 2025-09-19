@@ -14,16 +14,16 @@ def _tenant_from(request: Request) -> str:
 @router.post("/trinetra/qc/upload")
 async def qc_upload(
     request: Request,
-    image: UploadFile = File(...),
+    file: UploadFile = File(...),
     repo = Depends(get_qc_repo),  # repo handles in-memory vs mongo
 ):
     tenant = _tenant_from(request)
-    content = await image.read()
+    content = await file.read()
     doc: Dict[str, Any] = {
         "tenant": tenant,
-        "filename": image.filename,
+        "filename": file.filename,
         "size": len(content),
-        "mime": image.content_type,
+        "mime": file.content_type,
         "qc": {"ok": True, "reason": "dummy-pass"},
         "ts": datetime.utcnow().isoformat() + "Z",
     }
@@ -64,4 +64,5 @@ def _qc_set_paging_headers(response, limit, skip):
         response.headers["X-Skip"]  = str(S)
     except Exception:
         pass
+
 
