@@ -1,24 +1,73 @@
-﻿name: CI
+name: CI — Pester tests
+
 on:
   push:
     branches: [ main ]
   pull_request:
+    branches: [ main ]
+
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-      - name: Install deps
+          python-version: '3.11'
+
+      - name: Install Python deps
+        shell: pwsh
         run: |
-          python -m pip install -U pip
-          pip install -r requirements.txt
-          pip install pytest
-      - name: Env
+          python -m pip install --upgrade pip
+          if (Test-Path requirements.txt) {
+            pip install -r requirements.txt
+          } else {
+            pip install uvicorn fastapi pymongo
+          }
+
+      # Minimal .env for CI; NO SendGrid key => no emails will be sent
+      - name: Create .env
+        shell: pwsh
         run: |
-          echo "SECRET_KEY=${{ secrets.SECRET_KEY || 'dev-secret-key' }}" >> $GITHUB_ENV
-          echo "ALLOWED_ORIGINS=https://app.trishul.cloud,http://localhost:3000" >> $GITHUB_ENV
+          @'
+SECRET_KEY=dev-secret-for-ci
+TENANT_DOMAIN=tenant1.lvh.me
+'@ | Out-File -Encoding utf8 .env
+
+      - name: Launch API
+        shell: pwsh
+        run: |
+          C:\Users\patel\OneDrive\Documents\PowerShell\Modules\Pester\5.7.1/Pester.ps1 = Start-Process -FilePath python -ArgumentList '-m uvicorn app.main:app --host 127.0.0.1 --port 8000' -PassThru
+           = (Get-Date).AddSeconds(25)
+          do {
+            try {
+               = (curl.exe -s -o NUL -w '%{http_code}' 'http://127.0.0.1:8000/health' -H 'Host: tenant1.lvh.me')
+              if ( -eq '200') { break }
+            } catch {}
+            Start-Sleep -Milliseconds 500
+          } while ((Get-Date) -lt )
+          if ( -ne '200') { throw 'API failed to start' }
+
+      - name: Install Pester 5
+        shell: pwsh
+        run: |
+          Install-Module Pester -MinimumVersion 5.0.0 -Force -Scope CurrentUser
+          Import-Module  Pester -MinimumVersion 5.0.0 -Force
+
       - name: Run tests
-        run: pytest -q
+        shell: pwsh
+        env:
+          HOST: tenant1.lvh.me
+        run: |
+          Invoke-Pester .\tests\*.Tests.ps1 -CI
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-logs
+          path: logs/**/*.log
