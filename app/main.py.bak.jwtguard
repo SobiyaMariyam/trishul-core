@@ -1,5 +1,4 @@
-﻿from app.middleware.jwt_guard import JWTGuardMiddleware
-from fastapi.middleware.cors import CORSMiddleware
+﻿from fastapi.middleware.cors import CORSMiddleware
 from app.api import _refresh_diag
 from app.common.observability import setup_logging, ObservabilityMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -32,7 +31,6 @@ class MongoJSONResponse(JSONResponse):
 load_dotenv()
 setup_logging()
 app = FastAPI(default_response_class=MongoJSONResponse, title="Trishul Core")
-app.add_middleware(JWTGuardMiddleware)
 # --- CORS (strict) ---
 _allowed = os.getenv("ALLOWED_ORIGINS", "").split(",") if os.getenv("ALLOWED_ORIGINS") else []
 app.add_middleware(
@@ -111,5 +109,4 @@ app.add_middleware(
     expose_headers=["X-Request-ID"],
     max_age=600,
 )
-
 
