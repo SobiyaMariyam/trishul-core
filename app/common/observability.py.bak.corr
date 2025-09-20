@@ -66,5 +66,3 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
             req.method, req.url.path, resp.status_code, int((time.perf_counter()-t)*1000)
         )
         return resp
-
-

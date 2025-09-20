@@ -1,8 +1,7 @@
-﻿from datetime import datetime, timezone
-from bson.json_util import dumps
+﻿from bson.json_util import dumps
 from starlette.responses import Response
 from datetime import datetime
-from fastapi import APIRouter, File, UploadFile, Request, Depends, HTTPException
+from fastapi import APIRouter, File, UploadFile, Request, Depends
 from typing import Dict, Any
 from app.deps import get_qc_repo, get_db
 
@@ -40,10 +39,10 @@ async def qc_results(
     # IMPORTANT: return a raw list as the tests expect
     return Response(dumps(list(repo.list(tenant))), media_type="application/json")
 
-from fastapi import Body, HTTPException
+from fastapi import Body
 from bson.json_util import dumps
 from starlette.responses import Response
-from fastapi import Depends, Request, HTTPException
+from fastapi import Depends, Request
 from app.deps import get_db
 
 @router.post("/trinetra/qc/seed")
@@ -52,29 +51,7 @@ async def trinetra_qc_seed(request: Request, db=Depends(get_db), items: list[dic
     col = db[f"{tenant}_qc"]
     if isinstance(items, dict):
         items = [items]
-        # --- begin hardening: validate seed items ---
-    if not isinstance(items, list) or len(items) == 0:
-        raise HTTPException(status_code=400, detail="items must be a non-empty list")
-    cleaned = []
-    for it in items:
-        if not isinstance(it, dict):
-            continue
-        fname = it.get("filename") or it.get("name")
-        status = (it.get("status") or "ok").lower()
-        if fname and status in {"ok", "fail", "warn"}:
-            doc = {
-                "tenant": tenant,
-                "filename": fname,
-                "mime": it.get("mime") or "application/octet-stream",
-                "size": int(it.get("size") or 0),
-                "qc": {"ok": status == "ok", "reason": it.get("reason") or "dummy-pass"},
-                "ts": datetime.utcnow().replace(tzinfo=timezone.utc)
-            }
-            cleaned.append(doc)
-    if not cleaned:
-        raise HTTPException(status_code=400, detail="no valid items to insert")
-    # --- end hardening ---
-    res = col.insert_many(cleaned)
+    res = col.insert_many(items)
     return Response(dumps({"inserted": len(res.inserted_ids)}), media_type="application/json")
 
 # --- pagination for QC results ---
@@ -87,6 +64,5 @@ def _qc_set_paging_headers(response, limit, skip):
         response.headers["X-Skip"]  = str(S)
     except Exception:
         pass
-
 
 

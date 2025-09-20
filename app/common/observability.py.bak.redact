@@ -67,4 +67,3 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
         )
         return resp
 
-
