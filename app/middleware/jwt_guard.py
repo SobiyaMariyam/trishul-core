@@ -48,7 +48,7 @@ class JWTGuardMiddleware:
                         token,
                         SECRET,
                         algorithms=["HS256"],
-                        audience=tenant,
+                        audience=tenant, leeway=60,
                         options={"require": ["exp", "aud"]},
                     )
                 except Exception:
@@ -59,3 +59,4 @@ class JWTGuardMiddleware:
                     return await res(scope, receive, send)
 
         return await self.app(scope, receive, send)
+

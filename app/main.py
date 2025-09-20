@@ -37,7 +37,7 @@ app.add_middleware(JWTGuardMiddleware)
 _allowed = os.getenv("ALLOWED_ORIGINS", "").split(",") if os.getenv("ALLOWED_ORIGINS") else []
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in _allowed if o.strip()],
+    allow_origins=["https://$($env:HOST)"],
     allow_credentials=True,
     allow_methods=["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
     allow_headers=["*"],
@@ -75,7 +75,7 @@ app.add_middleware(ObservabilityMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in _allowed if o.strip()],
+    allow_origins=["https://$($env:HOST)"],
     allow_credentials=True,
     allow_methods=["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
     allow_headers=["*"],
@@ -111,5 +111,6 @@ app.add_middleware(
     expose_headers=["X-Request-ID"],
     max_age=600,
 )
+
 
 
