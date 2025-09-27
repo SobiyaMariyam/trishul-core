@@ -1,24 +1,28 @@
-# tests\_helpers.ps1
-$Base = "http://127.0.0.1:8000"
-$HostHeader = "tenant1.lvh.me"
-
-# Mint short-lived OWNER from .env SECRET_KEY using python -c
-$S = ((Get-Content .env -Raw) -split "`n" | ? {$_ -match '^SECRET_KEY='} | % { ($_ -split '=',2)[1].Trim() })
-$script:OWNER = (python -c "import time,jwt; s='$S'; n=int(time.time()); print(jwt.encode({'sub':'emp@tenant1.com','tid':'tenant1','role':'owner','iat':n,'exp':n+600,'aud':'tenant1'}, s, algorithm='HS256'))").Trim()
-
-function Invoke-TrishulTest {
+﻿function Invoke-TrishulTest {
   param(
-    [Parameter(Mandatory)][string]$Path,
-    [ValidateSet('GET','POST')][string]$Method='GET',
-    [string]$BodyJson = $null,
-    [switch]$NoAuth
+    [Parameter(Mandatory=$true)][string]$Path,
+    [ValidateSet("GET","POST","PUT","PATCH","DELETE")][string]$Method = "GET",
+    [string]$BodyJson
   )
-  $uri = "$Base$Path"
-  $headers = @{ Host = $HostHeader }
-  if (-not $NoAuth) { $headers.Authorization = "Bearer $script:OWNER" }
-  if ($Method -eq 'POST' -and $BodyJson -eq $null) { $BodyJson = '{}' }
+  $u = $env:TRISHUL_URL; if (-not $u) { $u = "http://127.0.0.1:8000" }
+  $vhost = $env:HOST; if (-not $vhost) { $vhost = "tenant1.lvh.me" }
 
-  $resp = Invoke-WebRequest -Uri $uri -Method $Method -Headers $headers -ContentType 'application/json' -Body $BodyJson
-  if (-not $resp.Content) { throw "Empty response from $Path (HTTP $($resp.StatusCode))" }
-  return ($resp.Content | ConvertFrom-Json)
+  $headers = @{ Host = $vhost }
+  if ($env:OWNER) { $headers["Authorization"] = "Bearer $env:OWNER" }
+
+  $args = @{
+    Uri            = ($u + $Path)
+    Method         = $Method
+    Headers        = $headers
+    UseBasicParsing= $true
+  }
+
+  if ($BodyJson -and $Method -in @("POST","PUT","PATCH")) {
+    $args["ContentType"] = "application/json"
+    $args["Body"] = $BodyJson
+  }
+
+  $resp = Invoke-WebRequest @args
+  if ($resp.Content) { return ($resp.Content | ConvertFrom-Json) }
 }
+

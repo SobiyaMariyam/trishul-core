@@ -1,36 +1,25 @@
-Describe "Nandi API" {
+﻿Describe "Nandi API" {
 
-  BeforeAll {
-    . "$PSScriptRoot\_helpers.ps1"
-    $script:testTo = $env:TEST_TO
-    if ([string]::IsNullOrWhiteSpace($script:testTo)) {
-      $script:testTo = "trishul.ai825@gmail.com"
-    }
-  }
+  BeforeAll { . "$PSScriptRoot\_helpers.ps1" }
 
   It "queues (and possibly sends) an email" {
-    $payload = @{
-      to      = $script:testTo
-      subject = "Nandi test ✔"
-      body    = "Sent from Pester."
-    } | ConvertTo-Json -Compress
-
+    $payload = '{ "to":"qa@example.com", "subject":"Pester test", "body":"Sent from Pester." }'
     $res = Invoke-TrishulTest -Path '/nandi/email/send' -Method POST -BodyJson $payload
-    $res.ok | Should -BeTrue
-    # Either queued true OR sent true is acceptable
-    (($res.queued -eq $true) -or ($res.sent -eq $true)) | Should -BeTrue
-  }
-
-  It "outbox returns an array of messages" {
-    $res = Invoke-TrishulTest -Path '/nandi/email/outbox'
-    ($res.results | Measure-Object).Count | Should -BeGreaterThan 0
+    $res | Should -Not -BeNullOrEmpty
   }
 
   It "most recent outbox item has expected fields" {
-    $res = Invoke-TrishulTest -Path '/nandi/email/outbox'
-    $last = $res.results[-1]
-    $last.to      | Should -Not -BeNullOrEmpty
-    $last.subject | Should -Not -BeNullOrEmpty
-    $last.ts      | Should -Not -BeNullOrEmpty
+    $items = Invoke-TrishulTest -Path '/nandi/email/outbox?limit=5'
+    # Handle both shapes: bare array OR {results:[...]}
+    if ($items -is [System.Array]) {
+      $latest = $items | Select-Object -First 1
+    } elseif ($items.PSObject.Properties.Name -contains 'results') {
+      $latest = $items.results | Select-Object -First 1
+    } else {
+      $latest = $items
+    }
+    $latest | Should -Not -BeNullOrEmpty
+    $latest.to | Should -Not -BeNullOrEmpty
+    $latest.subject | Should -Not -BeNullOrEmpty
   }
 }

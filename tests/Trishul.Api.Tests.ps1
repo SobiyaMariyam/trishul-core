@@ -1,11 +1,11 @@
-Describe "Trishul API" {
+﻿Describe "Trishul API" {
 
   BeforeAll {
     . "$PSScriptRoot\_helpers.ps1"
   }
 
   It "/health returns ok:true" {
-    $res = Invoke-TrishulTest -Path '/health' -NoAuth
+    $res = Invoke-TrishulTest -Path '/health'
     $res.ok | Should -BeTrue
   }
 
@@ -19,3 +19,4 @@ Describe "Trishul API" {
     $res.total | Should -BeGreaterThan 0
   }
 }
+
