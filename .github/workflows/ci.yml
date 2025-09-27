@@ -41,22 +41,22 @@ TENANT_DOMAIN=tenant1.lvh.me
       - name: Launch API
         shell: pwsh
         run: |
-          C:\Users\patel\OneDrive\Documents\PowerShell\Modules\Pester\5.7.1/Pester.ps1 = Start-Process -FilePath python -ArgumentList '-m uvicorn app.main:app --host 127.0.0.1 --port 8000' -PassThru
-           = (Get-Date).AddSeconds(25)
+          $apiProcess = Start-Process -FilePath python -ArgumentList '-m uvicorn app.main:app --host 127.0.0.1 --port 8000' -PassThru
+          $timeout = (Get-Date).AddSeconds(25)
           do {
             try {
-               = (curl.exe -s -o NUL -w '%{http_code}' 'http://127.0.0.1:8000/health' -H 'Host: tenant1.lvh.me')
-              if ( -eq '200') { break }
+              $response = (curl.exe -s -o NUL -w '%{http_code}' 'http://127.0.0.1:8000/health' -H 'Host: tenant1.lvh.me')
+              if ($response -eq '200') { break }
             } catch {}
             Start-Sleep -Milliseconds 500
-          } while ((Get-Date) -lt )
-          if ( -ne '200') { throw 'API failed to start' }
+          } while ((Get-Date) -lt $timeout)
+          if ($response -ne '200') { throw 'API failed to start' }
 
       - name: Install Pester 5
         shell: pwsh
         run: |
           Install-Module Pester -MinimumVersion 5.0.0 -Force -Scope CurrentUser
-          Import-Module  Pester -MinimumVersion 5.0.0 -Force
+          Import-Module Pester -MinimumVersion 5.0.0 -Force
 
       - name: Run tests
         shell: pwsh
