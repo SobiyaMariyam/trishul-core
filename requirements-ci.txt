@@ -1,0 +1,14 @@
+# Minimal requirements for CI - only what we actually need to run the API
+fastapi>=0.100.0
+uvicorn>=0.20.0
+pymongo>=4.0.0
+prometheus-fastapi-instrumentator
+python-jose[cryptography]
+pydantic-settings>=2.0.0
+python-multipart
+APScheduler>=3.10.0
+slowapi
+python-dotenv>=1.0.0
+limits>=3.0.0
+xhtml2pdf
+bcrypt>=4.0.0

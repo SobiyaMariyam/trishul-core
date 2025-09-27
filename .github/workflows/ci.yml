@@ -23,11 +23,17 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
-          if (Test-Path requirements.txt) {
-            pip install -r requirements.txt
+          
+          # Install from CI requirements (minimal set for testing)
+          if (Test-Path requirements-ci.txt) {
+            Write-Host "Installing from requirements-ci.txt..."
+            pip install -r requirements-ci.txt
           } else {
-            pip install uvicorn fastapi pymongo
+            Write-Host "No requirements-ci.txt found, using minimal packages..."
+            pip install uvicorn fastapi pymongo prometheus-fastapi-instrumentator python-jose[cryptography] pydantic-settings python-multipart APScheduler slowapi python-dotenv
           }
+          
+          Write-Host "Package installation completed"
 
       # Minimal .env for CI; NO SendGrid key => no emails will be sent
       - name: Create .env

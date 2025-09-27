@@ -2,3 +2,4 @@ Environment variables set:
 SECRET_KEY: dev-secret-for-ci
 USE_INMEMORY_DB: 1
 Starting uvicorn server...
+INFO:     127.0.0.1:39092 - "GET /health HTTP/1.1" 200 OK
