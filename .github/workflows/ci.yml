@@ -33,10 +33,10 @@ jobs:
       - name: Create .env
         shell: pwsh
         run: |
-          @'
-SECRET_KEY=dev-secret-for-ci
-TENANT_DOMAIN=tenant1.lvh.me
-'@ | Out-File -Encoding utf8 .env
+          @"
+          SECRET_KEY=dev-secret-for-ci
+          TENANT_DOMAIN=tenant1.lvh.me
+          "@ | Out-File -Encoding utf8 .env
 
       - name: Launch API
         shell: pwsh
