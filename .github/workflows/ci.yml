@@ -44,16 +44,27 @@ jobs:
       - name: Launch API
         shell: pwsh
         run: |
-          # Start API using the dedicated script with output capture
-          Write-Host "Starting API with error capture..."
-          $apiProcess = Start-Process python -ArgumentList 'scripts\start_api_ci.py' -PassThru -RedirectStandardOutput 'api_output.txt' -RedirectStandardError 'api_error.txt' -WindowStyle Hidden
+          # Set environment variables for the API
+          $env:SECRET_KEY = "dev-secret-for-ci"
+          $env:TENANT_DOMAIN = "tenant1.lvh.me"
+          $env:USE_INMEMORY_DB = "1"
+          
+          Write-Host "Starting API with direct uvicorn launch..."
+          $apiProcess = Start-Process python -ArgumentList @(
+            '-m', 'uvicorn', 
+            'app.main:app', 
+            '--host', '127.0.0.1', 
+            '--port', '8000',
+            '--log-level', 'info'
+          ) -PassThru -RedirectStandardOutput 'api_output.txt' -RedirectStandardError 'api_error.txt' -WindowStyle Hidden
+          
           Write-Host "Started API process: $($apiProcess.Id)"
           
           # Store the process ID for later steps
           $apiProcess.Id | Out-File -FilePath 'api_process_id.txt' -NoNewline
           
           # Give it a moment to start
-          Start-Sleep -Seconds 3
+          Start-Sleep -Seconds 5
           
           # Check if process died and show output
           if (-not (Get-Process -Id $apiProcess.Id -ErrorAction SilentlyContinue)) {
@@ -71,7 +82,7 @@ jobs:
           
           # Wait for startup and test health endpoint
           Write-Host "Process is running, testing health endpoint..."
-          $timeout = (Get-Date).AddSeconds(25)
+          $timeout = (Get-Date).AddSeconds(30)
           $attempts = 0
           $response = ""
           do {
@@ -107,7 +118,7 @@ jobs:
             throw 'API failed to start - final response: ' + $response
           }
           
-          Write-Host "API started successfully!"
+          Write-Host "API started successfully! Process ID: $($apiProcess.Id)"
 
       - name: Install Pester 5
         shell: pwsh
@@ -121,9 +132,10 @@ jobs:
           # Check if API process is still running
           $processId = Get-Content 'api_process_id.txt' -ErrorAction SilentlyContinue
           if ($processId) {
+            Write-Host "Checking for API process ID: $processId"
             $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
             if ($process) {
-              Write-Host "✅ API process $processId is still running"
+              Write-Host "✅ API process $processId is still running (Name: $($process.ProcessName), CPU: $($process.CPU))"
               
               # Test health endpoint one more time before tests
               try {
@@ -131,13 +143,29 @@ jobs:
                 Write-Host "✅ Health check passed: $($response.StatusCode) - $($response.Content)"
               } catch {
                 Write-Host "❌ Health check failed: $_"
+                Write-Host "Process status: $(Get-Process -Id $processId -ErrorAction SilentlyContinue)"
                 Write-Host "API output:"
-                if (Test-Path 'api_output.txt') { Get-Content 'api_output.txt' | Write-Host }
-                if (Test-Path 'api_error.txt') { Get-Content 'api_error.txt' | Write-Host }
+                if (Test-Path 'api_output.txt') { 
+                  Write-Host "=== STDOUT ==="
+                  Get-Content 'api_output.txt' | Write-Host 
+                }
+                if (Test-Path 'api_error.txt') { 
+                  Write-Host "=== STDERR ==="
+                  Get-Content 'api_error.txt' | Write-Host 
+                }
                 throw "API is not responding before tests"
               }
             } else {
               Write-Host "❌ API process died before tests!"
+              Write-Host "Final API output:"
+              if (Test-Path 'api_output.txt') { 
+                Write-Host "=== STDOUT ==="
+                Get-Content 'api_output.txt' | Write-Host 
+              }
+              if (Test-Path 'api_error.txt') { 
+                Write-Host "=== STDERR ==="
+                Get-Content 'api_error.txt' | Write-Host 
+              }
               throw "API process not found"
             }
           } else {
@@ -150,7 +178,18 @@ jobs:
         env:
           HOST: tenant1.lvh.me
         run: |
-          Invoke-Pester .\tests\*.Tests.ps1 -CI
+          Write-Host "Starting tests after brief pause..."
+          Start-Sleep -Seconds 2
+          
+          # Double-check process is still running right before tests
+          $processId = Get-Content 'api_process_id.txt' -ErrorAction SilentlyContinue
+          if ($processId -and (Get-Process -Id $processId -ErrorAction SilentlyContinue)) {
+            Write-Host "✅ API process $processId confirmed running before tests"
+            Invoke-Pester .\tests\*.Tests.ps1 -CI
+          } else {
+            Write-Host "❌ API process died right before tests!"
+            throw "API process not available for testing"
+          }
 
       - name: Cleanup API Process
         if: always()
