@@ -4,6 +4,7 @@ uvicorn>=0.20.0
 pymongo>=4.0.0
 prometheus-fastapi-instrumentator
 python-jose[cryptography]
+PyJWT>=2.8.0
 pydantic-settings>=2.0.0
 python-multipart
 APScheduler>=3.10.0
