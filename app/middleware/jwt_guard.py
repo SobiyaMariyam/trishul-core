@@ -37,6 +37,10 @@ class JWTGuardMiddleware:
         host = request.headers.get("host", "")
         tenant = _tenant_from_host(host)
 
+        # Skip JWT check for health endpoint
+        if request.url.path == "/health":
+            return await self.app(scope, receive, send)
+
         # only guard tenant subdomains; skip if we can't parse a tenant
         if tenant:
             auth = request.headers.get("authorization", "")
