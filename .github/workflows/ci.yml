@@ -38,16 +38,38 @@ jobs:
       - name: Launch API
         shell: pwsh
         run: |
-          $apiProcess = Start-Process -FilePath python -ArgumentList '-m uvicorn app.main:app --host 127.0.0.1 --port 8000' -PassThru
-          $timeout = (Get-Date).AddSeconds(25)
+          # Start API in background using PowerShell job (more reliable in CI)
+          $job = Start-Job -ScriptBlock {
+            Set-Location "D:\a\trishul-core\trishul-core"
+            python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+          }
+          
+          # Wait for API to start
+          $timeout = (Get-Date).AddSeconds(30)
+          $attempts = 0
           do {
+            $attempts++
+            Write-Host "Attempt $attempts..."
             try {
               $response = (curl.exe -s -o NUL -w '%{http_code}' 'http://127.0.0.1:8000/health' -H 'Host: tenant1.lvh.me')
-              if ($response -eq '200') { break }
-            } catch {}
-            Start-Sleep -Milliseconds 500
+              Write-Host "Response: $response"
+              if ($response -eq '200') { 
+                Write-Host "API is ready!"
+                break 
+              }
+            } catch {
+              Write-Host "Request failed: $_"
+            }
+            Start-Sleep -Seconds 2
           } while ((Get-Date) -lt $timeout)
-          if ($response -ne '200') { throw 'API failed to start' }
+          
+          if ($response -ne '200') { 
+            Write-Host "Job state: $($job.State)"
+            Receive-Job -Job $job | Write-Host
+            throw 'API failed to start' 
+          }
+          
+          Write-Host "API started successfully, keeping job running for tests..."
 
       - name: Install Pester 5
         shell: pwsh
