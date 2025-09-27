@@ -49,6 +49,9 @@ jobs:
           $apiProcess = Start-Process python -ArgumentList 'scripts\start_api_ci.py' -PassThru -RedirectStandardOutput 'api_output.txt' -RedirectStandardError 'api_error.txt' -WindowStyle Hidden
           Write-Host "Started API process: $($apiProcess.Id)"
           
+          # Store the process ID for later steps
+          $apiProcess.Id | Out-File -FilePath 'api_process_id.txt' -NoNewline
+          
           # Give it a moment to start
           Start-Sleep -Seconds 3
           
@@ -70,6 +73,7 @@ jobs:
           Write-Host "Process is running, testing health endpoint..."
           $timeout = (Get-Date).AddSeconds(25)
           $attempts = 0
+          $response = ""
           do {
             $attempts++
             Write-Host "Attempt $attempts..."
@@ -111,6 +115,36 @@ jobs:
           Install-Module Pester -MinimumVersion 5.0.0 -Force -Scope CurrentUser
           Import-Module Pester -MinimumVersion 5.0.0 -Force
 
+      - name: Pre-test API Check
+        shell: pwsh
+        run: |
+          # Check if API process is still running
+          $processId = Get-Content 'api_process_id.txt' -ErrorAction SilentlyContinue
+          if ($processId) {
+            $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+            if ($process) {
+              Write-Host "✅ API process $processId is still running"
+              
+              # Test health endpoint one more time before tests
+              try {
+                $response = Invoke-WebRequest -Uri "http://127.0.0.1:8000/health" -Headers @{Host="tenant1.lvh.me"} -UseBasicParsing -TimeoutSec 10
+                Write-Host "✅ Health check passed: $($response.StatusCode) - $($response.Content)"
+              } catch {
+                Write-Host "❌ Health check failed: $_"
+                Write-Host "API output:"
+                if (Test-Path 'api_output.txt') { Get-Content 'api_output.txt' | Write-Host }
+                if (Test-Path 'api_error.txt') { Get-Content 'api_error.txt' | Write-Host }
+                throw "API is not responding before tests"
+              }
+            } else {
+              Write-Host "❌ API process died before tests!"
+              throw "API process not found"
+            }
+          } else {
+            Write-Host "❌ API process ID not found"
+            throw "Process ID file missing"
+          }
+
       - name: Run tests
         shell: pwsh
         env:
@@ -118,9 +152,34 @@ jobs:
         run: |
           Invoke-Pester .\tests\*.Tests.ps1 -CI
 
+      - name: Cleanup API Process
+        if: always()
+        shell: pwsh
+        run: |
+          # Stop the API process
+          $processId = Get-Content 'api_process_id.txt' -ErrorAction SilentlyContinue
+          if ($processId) {
+            Write-Host "Stopping API process $processId"
+            Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
+          }
+          
+          # Show final API output for debugging
+          Write-Host "=== Final API Output ==="
+          if (Test-Path 'api_output.txt') { 
+            Write-Host "STDOUT:"
+            Get-Content 'api_output.txt' | Write-Host 
+          }
+          if (Test-Path 'api_error.txt') { 
+            Write-Host "STDERR:"
+            Get-Content 'api_error.txt' | Write-Host 
+          }
+
       - name: Upload logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: server-logs
-          path: logs/**/*.log
+          path: |
+            api_output.txt
+            api_error.txt
+            logs/**/*.log
