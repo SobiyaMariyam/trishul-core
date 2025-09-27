@@ -33,7 +33,7 @@ jobs:
       - name: Create .env
         shell: pwsh
         run: |
-          "SECRET_KEY=dev-secret-for-ci`nTENANT_DOMAIN=tenant1.lvh.me" | Out-File -Encoding ASCII -NoNewline .env
+          "SECRET_KEY=dev-secret-for-ci`nTENANT_DOMAIN=tenant1.lvh.me`nUSE_INMEMORY_DB=1" | Out-File -Encoding ASCII -NoNewline .env
 
       - name: Launch API
         shell: pwsh
