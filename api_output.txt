@@ -1,0 +1,4 @@
+Environment variables set:
+SECRET_KEY: dev-secret-for-ci
+USE_INMEMORY_DB: 1
+Starting uvicorn server...

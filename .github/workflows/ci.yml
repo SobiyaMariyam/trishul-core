@@ -38,39 +38,42 @@ jobs:
       - name: Launch API
         shell: pwsh
         run: |
-          # Create a simple start script to run the API
-          @"
-          import os
-          os.environ['SECRET_KEY'] = 'dev-secret-for-ci'
-          os.environ['TENANT_DOMAIN'] = 'tenant1.lvh.me'
-          os.environ['USE_INMEMORY_DB'] = '1'
-          
-          import subprocess
-          import sys
-          
-          subprocess.run([
-              sys.executable, '-m', 'uvicorn', 
-              'app.main:app', 
-              '--host', '127.0.0.1', 
-              '--port', '8000',
-              '--log-level', 'info'
-          ])
-          "@ | Out-File -FilePath start_api.py -Encoding utf8
-          
-          # Start API in background
-          $apiProcess = Start-Process python -ArgumentList 'start_api.py' -PassThru -WindowStyle Hidden
+          # Start API using the dedicated script with output capture
+          Write-Host "Starting API with error capture..."
+          $apiProcess = Start-Process python -ArgumentList 'scripts\start_api_ci.py' -PassThru -RedirectStandardOutput 'api_output.txt' -RedirectStandardError 'api_error.txt' -WindowStyle Hidden
           Write-Host "Started API process: $($apiProcess.Id)"
           
-          # Wait for startup and test
-          $timeout = (Get-Date).AddSeconds(30)
+          # Give it a moment to start
+          Start-Sleep -Seconds 3
+          
+          # Check if process died and show output
+          if (-not (Get-Process -Id $apiProcess.Id -ErrorAction SilentlyContinue)) {
+            Write-Host "API process died! Output:"
+            if (Test-Path 'api_output.txt') {
+              Write-Host "STDOUT:"
+              Get-Content 'api_output.txt' | Write-Host
+            }
+            if (Test-Path 'api_error.txt') {
+              Write-Host "STDERR:" 
+              Get-Content 'api_error.txt' | Write-Host
+            }
+            throw "API process died - check output above for errors"
+          }
+          
+          # Wait for startup and test health endpoint
+          Write-Host "Process is running, testing health endpoint..."
+          $timeout = (Get-Date).AddSeconds(25)
           $attempts = 0
           do {
             $attempts++
             Write-Host "Attempt $attempts..."
             
-            # Check if process is still running
+            # Check if process died during startup
             if (-not (Get-Process -Id $apiProcess.Id -ErrorAction SilentlyContinue)) {
-              throw "API process died unexpectedly"
+              Write-Host "Process died during health checks! Output:"
+              if (Test-Path 'api_output.txt') { Get-Content 'api_output.txt' | Write-Host }
+              if (Test-Path 'api_error.txt') { Get-Content 'api_error.txt' | Write-Host }
+              throw "API process died during startup"
             }
             
             try {
@@ -87,7 +90,10 @@ jobs:
           } while ((Get-Date) -lt $timeout)
           
           if ($response -ne '200') { 
-            Write-Host "Process still running: $(Get-Process -Id $apiProcess.Id -ErrorAction SilentlyContinue)"
+            Write-Host "Final process check: $(Get-Process -Id $apiProcess.Id -ErrorAction SilentlyContinue)"
+            Write-Host "Server output:"
+            if (Test-Path 'api_output.txt') { Get-Content 'api_output.txt' | Write-Host }
+            if (Test-Path 'api_error.txt') { Get-Content 'api_error.txt' | Write-Host }
             throw 'API failed to start - final response: ' + $response
           }
           
