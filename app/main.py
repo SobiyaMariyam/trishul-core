@@ -194,7 +194,7 @@ except Exception as e:
     logger.error(f"[FAIL] Failed to load refresh_diag: {e}")
 
 # ---- Observability (request IDs + audit log) --------------------------------
-app.add_middleware(ObservabilityMiddleware)
+# app.add_middleware(ObservabilityMiddleware)  # Temporarily disabled for debugging
 
 # ---- Metrics ----------------------------------------------------------------
 Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)

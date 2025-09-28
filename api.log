@@ -50,3 +50,77 @@
 2025-09-28 20:36:44,252 - root - INFO - {"ts":"2025-09-28T15:06:44.252859+00:00","rid":"aedd3b9e-e7ce-4dcf-9f6a-d341fca23217","tenant":"tenant1","actor":"-","method":"GET","path":"/health","status":200,"duration_ms":1,"stage":"response"}
 2025-09-28 20:36:46,343 - root - INFO - {"ts":"2025-09-28T15:06:46.343618+00:00","rid":"d49b21ee-66ab-420a-b584-4264212269ca","tenant":"tenant1","actor":"-","method":"GET","path":"/kavach/health","query":"","stage":"request"}
 2025-09-28 20:36:46,346 - root - INFO - {"ts":"2025-09-28T15:06:46.346618+00:00","rid":"d49b21ee-66ab-420a-b584-4264212269ca","tenant":"tenant1","actor":"-","method":"GET","path":"/kavach/health","status":200,"duration_ms":2,"stage":"response"}
+2025-09-28 20:54:10,209 - app.main - INFO - [OK] Loaded auth_routes router
+2025-09-28 20:54:10,210 - app.main - INFO - [OK] Loaded protected_routes router
+2025-09-28 20:54:10,212 - app.main - INFO - [OK] Loaded admin router
+2025-09-28 20:54:10,214 - app.main - INFO - [OK] Loaded kavach router
+2025-09-28 20:54:10,216 - app.main - INFO - [OK] Loaded rudra router
+2025-09-28 20:54:10,220 - app.main - INFO - [OK] Loaded trinetra router
+2025-09-28 20:54:10,222 - app.main - INFO - [OK] Loaded nandi router
+2025-09-28 20:54:10,223 - app.main - INFO - [OK] Loaded jobs router
+2025-09-28 20:54:10,224 - app.main - INFO - [OK] Loaded auth_refresh router
+2025-09-28 20:54:10,224 - app.main - INFO - [OK] Loaded refresh_diag router
+2025-09-28 20:54:10,225 - app.main - INFO - Using in-memory database mode
+2025-09-28 20:54:10,227 - app.main - INFO - Application starting up...
+2025-09-28 20:54:58,046 - app.main - INFO - Received signal 2
+2025-09-28 20:54:58,046 - app.main - INFO - Cleaning up resources...
+2025-09-28 20:54:58,047 - app.main - INFO - Application shutting down...
+2025-09-28 20:54:58,053 - app.main - INFO - Cleaning up resources...
+2025-09-28 20:55:41,758 - app.main - INFO - [OK] Loaded auth_routes router
+2025-09-28 20:55:41,759 - app.main - INFO - [OK] Loaded protected_routes router
+2025-09-28 20:55:41,760 - app.main - INFO - [OK] Loaded admin router
+2025-09-28 20:55:41,762 - app.main - INFO - [OK] Loaded kavach router
+2025-09-28 20:55:41,763 - app.main - INFO - [OK] Loaded rudra router
+2025-09-28 20:55:41,765 - app.main - INFO - [OK] Loaded trinetra router
+2025-09-28 20:55:41,766 - app.main - INFO - [OK] Loaded nandi router
+2025-09-28 20:55:41,767 - app.main - INFO - [OK] Loaded jobs router
+2025-09-28 20:55:41,767 - app.main - INFO - [OK] Loaded auth_refresh router
+2025-09-28 20:55:41,768 - app.main - INFO - [OK] Loaded refresh_diag router
+2025-09-28 20:55:41,768 - app.main - INFO - Using in-memory database mode
+2025-09-28 20:55:41,770 - app.main - INFO - Application starting up...
+2025-09-28 20:55:58,976 - app.main - INFO - Received signal 2
+2025-09-28 20:55:58,976 - app.main - INFO - Cleaning up resources...
+2025-09-28 20:55:58,977 - app.main - INFO - Application shutting down...
+2025-09-28 20:55:58,982 - app.main - INFO - Cleaning up resources...
+2025-09-28 20:56:22,252 - app.main - INFO - [OK] Loaded auth_routes router
+2025-09-28 20:56:22,253 - app.main - INFO - [OK] Loaded protected_routes router
+2025-09-28 20:56:22,254 - app.main - INFO - [OK] Loaded admin router
+2025-09-28 20:56:22,256 - app.main - INFO - [OK] Loaded kavach router
+2025-09-28 20:56:22,258 - app.main - INFO - [OK] Loaded rudra router
+2025-09-28 20:56:22,261 - app.main - INFO - [OK] Loaded trinetra router
+2025-09-28 20:56:22,262 - app.main - INFO - [OK] Loaded nandi router
+2025-09-28 20:56:22,264 - app.main - INFO - [OK] Loaded jobs router
+2025-09-28 20:56:22,264 - app.main - INFO - [OK] Loaded auth_refresh router
+2025-09-28 20:56:22,265 - app.main - INFO - [OK] Loaded refresh_diag router
+2025-09-28 20:56:22,266 - app.main - INFO - Using in-memory database mode
+2025-09-28 20:56:22,267 - app.main - INFO - Application starting up...
+2025-09-28 20:57:54,002 - app.main - INFO - [OK] Loaded auth_routes router
+2025-09-28 20:57:54,003 - app.main - INFO - [OK] Loaded protected_routes router
+2025-09-28 20:57:54,004 - app.main - INFO - [OK] Loaded admin router
+2025-09-28 20:57:54,005 - app.main - INFO - [OK] Loaded kavach router
+2025-09-28 20:57:54,007 - app.main - INFO - [OK] Loaded rudra router
+2025-09-28 20:57:54,010 - app.main - INFO - [OK] Loaded trinetra router
+2025-09-28 20:57:54,011 - app.main - INFO - [OK] Loaded nandi router
+2025-09-28 20:57:54,012 - app.main - INFO - [OK] Loaded jobs router
+2025-09-28 20:57:54,013 - app.main - INFO - [OK] Loaded auth_refresh router
+2025-09-28 20:57:54,014 - app.main - INFO - [OK] Loaded refresh_diag router
+2025-09-28 20:57:54,014 - app.main - INFO - Using in-memory database mode
+2025-09-28 20:57:54,016 - app.main - INFO - Application starting up...
+2025-09-28 20:57:54,018 - app.main - INFO - Application shutting down...
+2025-09-28 20:57:54,019 - app.main - INFO - Cleaning up resources...
+2025-09-28 20:58:38,696 - app.main - INFO - [OK] Loaded auth_routes router
+2025-09-28 20:58:38,697 - app.main - INFO - [OK] Loaded protected_routes router
+2025-09-28 20:58:38,698 - app.main - INFO - [OK] Loaded admin router
+2025-09-28 20:58:38,699 - app.main - INFO - [OK] Loaded kavach router
+2025-09-28 20:58:38,701 - app.main - INFO - [OK] Loaded rudra router
+2025-09-28 20:58:38,703 - app.main - INFO - [OK] Loaded trinetra router
+2025-09-28 20:58:38,704 - app.main - INFO - [OK] Loaded nandi router
+2025-09-28 20:58:38,704 - app.main - INFO - [OK] Loaded jobs router
+2025-09-28 20:58:38,705 - app.main - INFO - [OK] Loaded auth_refresh router
+2025-09-28 20:58:38,705 - app.main - INFO - [OK] Loaded refresh_diag router
+2025-09-28 20:58:38,705 - app.main - INFO - Using in-memory database mode
+2025-09-28 20:58:38,707 - app.main - INFO - Application starting up...
+2025-09-28 20:59:18,857 - app.main - INFO - Received signal 2
+2025-09-28 20:59:18,857 - app.main - INFO - Cleaning up resources...
+2025-09-28 20:59:18,858 - app.main - INFO - Application shutting down...
+2025-09-28 20:59:18,863 - app.main - INFO - Cleaning up resources...
