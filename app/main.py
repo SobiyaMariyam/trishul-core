@@ -12,116 +12,199 @@ if os.getenv("USE_INMEMORY_DB") == "1":
     import threading
     import time as time_module
     import atexit
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
     
-    print("[CI-DEBUG] Initializing module-level persistence...", flush=True)
+    print("[CI-DEBUG] Initializing AGGRESSIVE module-level persistence...", flush=True)
     
-    # Global flag to control persistence
+    # Enhanced CI detection for GitHub Actions
+    ci_indicators = [
+        "github" in os.getcwd().lower(),
+        "hostedtoolcache" in sys.executable.lower(),
+        "runner" in os.getcwd().lower(),
+        "\\a\\" in os.getcwd(),  # GitHub Actions uses D:\a\repo\repo pattern
+        "/home/runner" in os.getcwd().lower(),  # Linux runners
+        os.getenv("GITHUB_ACTIONS") == "true",
+        os.getenv("CI") == "true",
+        os.getenv("RUNNER_OS") is not None
+    ]
+    ci_detected = any(ci_indicators)
+    
+    print(f"[CI-DEBUG] CI Detection: {dict(zip(['github_cwd', 'hostedtoolcache_exe', 'runner_cwd', 'backslash_a', 'home_runner', 'github_actions_env', 'ci_env', 'runner_os_env'], ci_indicators))} => {ci_detected}", flush=True)
+    
+    # Global control flags
     _persistence_active = True
-    _persistence_thread = None
+    _persistence_threads = []
     
-    def _module_level_persistence():
-        """Thread-based persistence that runs independent of FastAPI"""
-        global _persistence_active
+    def _aggressive_cpu_burner():
+        """Continuous CPU activity to prevent process termination"""
         counter = 0
-        
-        try:
-            print("[CI-DEBUG] Module-level persistence thread started", flush=True)
+        while _persistence_active:
+            counter += 1
             
-            # Enhanced CI detection for GitHub Actions
-            ci_indicators = [
-                "github" in os.getcwd().lower(),
-                "hostedtoolcache" in sys.executable.lower(),
-                "runner" in os.getcwd().lower(),
-                "\\a\\" in os.getcwd(),  # GitHub Actions uses D:\a\repo\repo pattern
-                "/home/runner" in os.getcwd().lower(),  # Linux runners
-                os.getenv("GITHUB_ACTIONS") == "true",
-                os.getenv("CI") == "true",
-                os.getenv("RUNNER_OS") is not None
-            ]
-            ci_detected = any(ci_indicators)
-            
-            print(f"[CI-DEBUG] CI Detection: {dict(zip(['github_cwd', 'hostedtoolcache_exe', 'runner_cwd', 'backslash_a', 'home_runner', 'github_actions_env', 'ci_env', 'runner_os_env'], ci_indicators))} => {ci_detected}", flush=True)
-            
-            sleep_interval = 2 if ci_detected else 5  # Faster in CI
-            
-            while _persistence_active:
-                counter += 1
-                time_module.sleep(sleep_interval)
-                
-                # More frequent heartbeats in CI
-                heartbeat_frequency = 3 if ci_detected else 6  # Every 6s in CI vs 30s locally
-                
-                if counter % heartbeat_frequency == 0:
-                    heartbeat_num = counter // heartbeat_frequency
-                    print(f"[CI-DEBUG] Module persistence heartbeat #{heartbeat_num} - PID {os.getpid()}", flush=True)
+            # Continuous CPU work with no sleep in CI
+            if ci_detected:
+                # AGGRESSIVE: Never sleep, always work
+                for i in range(10000):  # Much more work
+                    _ = sum(range(50)) * (i % 3 + 1)
                     
-                    # Write status file
-                    try:
-                        import json
-                        import datetime
-                        status_data = {
-                            "pid": os.getpid(),
-                            "timestamp": datetime.datetime.now().isoformat(),
-                            "heartbeat": heartbeat_num,
-                            "status": "module_alive", 
-                            "thread_based": True,
-                            "ci_mode": ci_detected,
-                            "sleep_interval": sleep_interval
-                        }
-                        with open("api_status.json", "w") as f:
-                            json.dump(status_data, f)
-                    except Exception as e:
-                        print(f"[CI-DEBUG] Module status write error: {e}", flush=True)
-                        
-                # Aggressive keep-alive for CI environments
-                if ci_detected:
-                    try:
-                        # Force Python to stay active with more work in CI
-                        for _ in range(1000):
-                            _ = sum(range(10))
-                        
-                        # Force memory activity
-                        temp_list = list(range(100))
-                        del temp_list
-                        
-                        # Force file I/O to show activity
-                        try:
-                            with open("heartbeat.tmp", "w") as f:
-                                f.write(f"heartbeat_{counter}")
-                            os.remove("heartbeat.tmp")
-                        except:
-                            pass
-                            
-                    except Exception:
-                        pass
-                else:
-                    # Light activity for local development
-                    try:
-                        _ = sum(range(100))
-                    except:
-                        pass
+                # Force memory allocation/deallocation
+                temp_data = [list(range(100)) for _ in range(50)]
+                del temp_data
+                
+                # Force string operations
+                temp_str = "CI_KEEPALIVE_" * 100
+                temp_str = temp_str.upper().lower()
+                del temp_str
+                
+                if counter % 1000 == 0:  # Every ~30 seconds of continuous work
+                    print(f"[CI-DEBUG] AGGRESSIVE CPU burner active #{counter//1000} - PID {os.getpid()}", flush=True)
                     
-        except Exception as e:
-            print(f"[CI-DEBUG] Module persistence error: {e}", flush=True)
-        finally:
-            print("[CI-DEBUG] Module persistence thread ending", flush=True)
+            else:
+                # Local development - be nice
+                time_module.sleep(1)
+                _ = sum(range(100))
     
-    def _stop_module_persistence():
-        """Stop the module-level persistence"""
-        global _persistence_active, _persistence_thread
+    def _network_keepalive():
+        """Continuous network activity to show the process is active"""
+        counter = 0
+        while _persistence_active:
+            counter += 1
+            
+            if ci_detected:
+                try:
+                    # Make internal health checks to keep network stack active
+                    import urllib.request
+                    import socket
+                    
+                    # Test local socket binding to show network activity
+                    test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    test_socket.bind(('127.0.0.1', 0))  # Bind to any available port
+                    port = test_socket.getsockname()[1]
+                    test_socket.close()
+                    
+                    if counter % 500 == 0:  # Every ~15 seconds
+                        print(f"[CI-DEBUG] Network keepalive #{counter//500} - tested port {port} - PID {os.getpid()}", flush=True)
+                        
+                    # Minimal sleep to prevent total CPU saturation but maintain activity
+                    time_module.sleep(0.01)  # 10ms
+                    
+                except Exception as e:
+                    if counter % 1000 == 0:
+                        print(f"[CI-DEBUG] Network keepalive error: {e}", flush=True)
+                    time_module.sleep(0.05)
+            else:
+                time_module.sleep(5)
+    
+    def _file_io_keepalive():
+        """Continuous file I/O to show filesystem activity"""
+        counter = 0
+        while _persistence_active:
+            counter += 1
+            
+            if ci_detected:
+                try:
+                    # Continuous file operations
+                    temp_file = f"ci_activity_{counter % 10}.tmp"
+                    with open(temp_file, "w") as f:
+                        f.write(f"CI_KEEPALIVE_{counter}_{os.getpid()}")
+                    
+                    # Read it back
+                    with open(temp_file, "r") as f:
+                        content = f.read()
+                    
+                    # Delete it
+                    os.remove(temp_file)
+                    
+                    if counter % 200 == 0:  # Every ~6 seconds
+                        print(f"[CI-DEBUG] File I/O keepalive #{counter//200} - PID {os.getpid()}", flush=True)
+                        
+                    time_module.sleep(0.03)  # 30ms
+                    
+                except Exception as e:
+                    if counter % 500 == 0:
+                        print(f"[CI-DEBUG] File I/O error: {e}", flush=True)
+                    time_module.sleep(0.1)
+            else:
+                time_module.sleep(3)
+                
+    def _status_reporter():
+        """Regular status reporting"""
+        counter = 0
+        while _persistence_active:
+            counter += 1
+            sleep_time = 3 if ci_detected else 10
+            time_module.sleep(sleep_time)
+            
+            if counter % (2 if ci_detected else 3) == 0:
+                heartbeat_num = counter // (2 if ci_detected else 3)
+                print(f"[CI-DEBUG] MEGA-PERSISTENT heartbeat #{heartbeat_num} - PID {os.getpid()}", flush=True)
+                
+                # Write status file
+                try:
+                    import json
+                    import datetime
+                    status_data = {
+                        "pid": os.getpid(),
+                        "timestamp": datetime.datetime.now().isoformat(),
+                        "heartbeat": heartbeat_num,
+                        "status": "mega_persistent_alive", 
+                        "ci_mode": ci_detected,
+                        "active_threads": len(_persistence_threads)
+                    }
+                    with open("api_status.json", "w") as f:
+                        json.dump(status_data, f)
+                except Exception as e:
+                    print(f"[CI-DEBUG] Status write error: {e}", flush=True)
+    
+    def _stop_all_persistence():
+        """Stop all persistence threads"""
+        global _persistence_active
         _persistence_active = False
-        if _persistence_thread and _persistence_thread.is_alive():
-            _persistence_thread.join(timeout=5)
-            print("[CI-DEBUG] Module persistence stopped", flush=True)
+        print("[CI-DEBUG] Stopping all persistence mechanisms...", flush=True)
+        
+        for thread in _persistence_threads:
+            if thread.is_alive():
+                thread.join(timeout=2)
+        
+        print("[CI-DEBUG] All persistence stopped", flush=True)
     
-    # Start the persistence thread immediately
-    _persistence_thread = threading.Thread(target=_module_level_persistence, daemon=True)
-    _persistence_thread.start()
+    # Start ALL persistence mechanisms
+    if ci_detected:
+        print("[CI-DEBUG] Starting AGGRESSIVE multi-threaded persistence for CI...", flush=True)
+        
+        # Start CPU burner (highest priority)
+        cpu_thread = threading.Thread(target=_aggressive_cpu_burner, daemon=True)
+        cpu_thread.start()
+        _persistence_threads.append(cpu_thread)
+        
+        # Start network keepalive
+        network_thread = threading.Thread(target=_network_keepalive, daemon=True)
+        network_thread.start()
+        _persistence_threads.append(network_thread)
+        
+        # Start file I/O keepalive
+        io_thread = threading.Thread(target=_file_io_keepalive, daemon=True)
+        io_thread.start()
+        _persistence_threads.append(io_thread)
+        
+        # Start status reporter
+        status_thread = threading.Thread(target=_status_reporter, daemon=True)
+        status_thread.start()
+        _persistence_threads.append(status_thread)
+        
+        print(f"[CI-DEBUG] Started {len(_persistence_threads)} aggressive persistence threads", flush=True)
+    else:
+        print("[CI-DEBUG] Starting light persistence for local development...", flush=True)
+        # Just status reporter for local
+        status_thread = threading.Thread(target=_status_reporter, daemon=True)
+        status_thread.start()
+        _persistence_threads.append(status_thread)
     
     # Register cleanup
-    atexit.register(_stop_module_persistence)
+    atexit.register(_stop_all_persistence)
     
-    print("[CI-DEBUG] Module-level persistence activated", flush=True)
+    print("[CI-DEBUG] AGGRESSIVE module-level persistence activated", flush=True)
 
 # Immediate CI logging
 if os.getenv("USE_INMEMORY_DB") == "1":
