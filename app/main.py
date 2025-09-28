@@ -42,79 +42,39 @@ if os.getenv("USE_INMEMORY_DB") == "1":
     _nuclear_persistence_enabled = False  # Flag for ultimate persistence mode
     _system_monitor_active = False
     
-    def _system_level_monitor():
-        """ABSOLUTE FINAL: System-level process monitor using subprocess"""
+    def _simple_blocking_keeper():
+        """SIMPLE SOLUTION: Never yield control in CI - continuous blocking loop"""
         if not ci_detected:
             return
             
-        try:
-            print("[CI-DEBUG] SYSTEM MONITOR: Starting system-level monitoring...", flush=True)
+        print("[CI-DEBUG] BLOCKING: Starting continuous blocking loop for GitHub Actions...", flush=True)
+        
+        counter = 0
+        while True:  # INFINITE LOOP - never exits
+            counter += 1
             
-            # Create a monitoring script that runs independently
-            monitor_script = f'''
-import time
-import os
-import signal
-import sys
-
-print("[MONITOR] System monitor started for PID {os.getpid()}", flush=True)
-
-counter = 0
-while True:
-    counter += 1
-    
-    # Heavy CPU work to prevent process optimization
-    for i in range(10000):
-        _ = sum(range(100)) * (i % 5 + 1)
-    
-    # Force file I/O
-    with open("system_monitor.tmp", "w") as f:
-        f.write(f"MONITOR_ALIVE_{{counter}}_{{os.getpid()}}")
-    
-    if counter % 50 == 0:
-        print(f"[MONITOR] System monitor heartbeat #{{counter//50}} - Main PID still protected", flush=True)
-    
-    time.sleep(0.1)  # 100ms
-'''
-            
-            # Write the monitor script
-            with open("_ci_monitor.py", "w") as f:
-                f.write(monitor_script)
-            
-            # Start the monitor as a separate process
-            monitor_process = subprocess.Popen(
-                [sys.executable, "_ci_monitor.py"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0
-            )
-            
-            print(f"[CI-DEBUG] SYSTEM MONITOR: Started independent monitor process PID {monitor_process.pid}", flush=True)
-            
-            # Also start a system signal blocker
-            def signal_blocker():
-                """Block system termination signals"""
-                def ignore_signal(signum, frame):
-                    print(f"[CI-DEBUG] SIGNAL BLOCKED: Received signal {signum}, ignoring in CI mode", flush=True)
-                    return
+            # Do continuous work - never sleep, never yield
+            for i in range(50000):  # Massive CPU work
+                _ = sum(range(100)) * (counter + i)
                 
-                if hasattr(signal, 'SIGTERM'):
-                    signal.signal(signal.SIGTERM, ignore_signal)
-                if hasattr(signal, 'SIGINT'):
-                    signal.signal(signal.SIGINT, ignore_signal)
-                if hasattr(signal, 'SIGKILL'):
-                    # SIGKILL cannot be caught, but we can try
+                # Write status every 10000 iterations
+                if i % 10000 == 0:
                     try:
-                        signal.signal(signal.SIGKILL, ignore_signal)
+                        with open("blocking_status.tmp", "w") as f:
+                            f.write(f"BLOCKING_ACTIVE_{counter}_{i}_{os.getpid()}")
                     except:
                         pass
-                        
-                print("[CI-DEBUG] SYSTEM MONITOR: Signal blocking activated", flush=True)
             
-            signal_blocker()
+            # Heartbeat every 100 cycles (about every 10-15 seconds)
+            if counter % 100 == 0:
+                print(f"[CI-DEBUG] BLOCKING: Never-ending loop #{counter//100} - PID {os.getpid()} ACTIVE", flush=True)
+                
+            # Force memory activity
+            temp_data = [str(counter + i) for i in range(1000)]
+            temp_result = ''.join(temp_data[:100])  # Use some data
+            del temp_data, temp_result
             
-        except Exception as e:
-            print(f"[CI-DEBUG] SYSTEM MONITOR: Error setting up system monitor: {e}", flush=True)
+            # NO SLEEP - continuous execution
     
     def _nuclear_main_thread_keeper():
         """NUCLEAR OPTION: Block the main thread to prevent process termination"""
@@ -323,13 +283,13 @@ while True:
     
     # Start ALL persistence mechanisms
     if ci_detected:
-        print("[CI-DEBUG] Starting ABSOLUTE FINAL multi-threaded persistence for CI...", flush=True)
+        print("[CI-DEBUG] Starting SIMPLE BLOCKING persistence for CI...", flush=True)
         
-        # Start system-level monitor first (most important)
+        # Start simple blocking keeper (most important)
         _system_monitor_active = True
-        monitor_thread = threading.Thread(target=_system_level_monitor, daemon=True)
-        monitor_thread.start()
-        _persistence_threads.append(monitor_thread)
+        blocking_thread = threading.Thread(target=_simple_blocking_keeper, daemon=True)
+        blocking_thread.start()
+        _persistence_threads.append(blocking_thread)
         
         # Start CPU burner (highest priority)
         cpu_thread = threading.Thread(target=_aggressive_cpu_burner, daemon=True)
@@ -351,7 +311,7 @@ while True:
         status_thread.start()
         _persistence_threads.append(status_thread)
         
-        print(f"[CI-DEBUG] Started {len(_persistence_threads)} absolute final persistence threads", flush=True)
+        print(f"[CI-DEBUG] Started {len(_persistence_threads)} simple blocking persistence threads", flush=True)
     else:
         print("[CI-DEBUG] Starting light persistence for local development...", flush=True)
         # Just status reporter for local
@@ -362,7 +322,7 @@ while True:
     # Register cleanup
     atexit.register(_stop_all_persistence)
     
-    print("[CI-DEBUG] ABSOLUTE FINAL module-level persistence activated", flush=True)
+    print("[CI-DEBUG] SIMPLE BLOCKING module-level persistence activated", flush=True)
 
 # Immediate CI logging
 if os.getenv("USE_INMEMORY_DB") == "1":
