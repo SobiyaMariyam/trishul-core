@@ -132,20 +132,66 @@ async def health():
     return {"ok": True}
 
 # ---- Routers ----------------------------------------------------------------
+# Load routers individually to isolate import errors
 try:
     app.include_router(auth_routes.router)
-    app.include_router(protected_routes.router)
-    app.include_router(admin.router)
-    app.include_router(kavach.router)
-    app.include_router(rudra.router)
-    app.include_router(trinetra.router)
-    app.include_router(nandi.router)
-    app.include_router(jobs.router)              # background jobs
-    app.include_router(auth_refresh.router)      # /auth/refresh
-    app.include_router(_refresh_diag.router)     # diagnostics
+    logger.info("[OK] Loaded auth_routes router")
 except Exception as e:
-    logger.error(f"Error loading routers: {e}")
-    # Continue without problematic routers for now
+    logger.error(f"[FAIL] Failed to load auth_routes: {e}")
+
+try:
+    app.include_router(protected_routes.router)
+    logger.info("[OK] Loaded protected_routes router")
+except Exception as e:
+    logger.error(f"[FAIL] Failed to load protected_routes: {e}")
+
+try:
+    app.include_router(admin.router)
+    logger.info("[OK] Loaded admin router")
+except Exception as e:
+    logger.error(f"[FAIL] Failed to load admin: {e}")
+
+try:
+    app.include_router(kavach.router)
+    logger.info("[OK] Loaded kavach router")
+except Exception as e:
+    logger.error(f"[FAIL] Failed to load kavach: {e}")
+
+try:
+    app.include_router(rudra.router)
+    logger.info("[OK] Loaded rudra router")
+except Exception as e:
+    logger.error(f"[FAIL] Failed to load rudra: {e}")
+
+try:
+    app.include_router(trinetra.router)
+    logger.info("[OK] Loaded trinetra router")
+except Exception as e:
+    logger.error(f"[FAIL] Failed to load trinetra: {e}")
+
+try:
+    app.include_router(nandi.router)
+    logger.info("[OK] Loaded nandi router")
+except Exception as e:
+    logger.error(f"[FAIL] Failed to load nandi: {e}")
+
+try:
+    app.include_router(jobs.router)
+    logger.info("[OK] Loaded jobs router")
+except Exception as e:
+    logger.error(f"[FAIL] Failed to load jobs: {e}")
+
+try:
+    app.include_router(auth_refresh.router)
+    logger.info("[OK] Loaded auth_refresh router")
+except Exception as e:
+    logger.error(f"[FAIL] Failed to load auth_refresh: {e}")
+
+try:
+    app.include_router(_refresh_diag.router)
+    logger.info("[OK] Loaded refresh_diag router")
+except Exception as e:
+    logger.error(f"[FAIL] Failed to load refresh_diag: {e}")
 
 # ---- Observability (request IDs + audit log) --------------------------------
 app.add_middleware(ObservabilityMiddleware)
