@@ -35,6 +35,7 @@ if os.getenv("USE_INMEMORY_DB") == "1":
     # Global control flags
     _persistence_active = True
     _persistence_threads = []
+    _fastapi_started = False  # Flag to indicate when FastAPI is ready
     
     def _aggressive_cpu_burner():
         """Continuous CPU activity to prevent process termination"""
@@ -42,24 +43,36 @@ if os.getenv("USE_INMEMORY_DB") == "1":
         while _persistence_active:
             counter += 1
             
-            # Continuous CPU work with no sleep in CI
+            # Start very light until FastAPI is ready, then ramp up
             if ci_detected:
-                # AGGRESSIVE: Never sleep, always work
-                for i in range(10000):  # Much more work
-                    _ = sum(range(50)) * (i % 3 + 1)
+                if not _fastapi_started:
+                    # LIGHT: Just enough to stay alive during startup
+                    _ = sum(range(10))
+                    time_module.sleep(0.1)  # 100ms sleep during startup
                     
-                # Force memory allocation/deallocation
-                temp_data = [list(range(100)) for _ in range(50)]
-                del temp_data
-                
-                # Force string operations
-                temp_str = "CI_KEEPALIVE_" * 100
-                temp_str = temp_str.upper().lower()
-                del temp_str
-                
-                if counter % 1000 == 0:  # Every ~30 seconds of continuous work
-                    print(f"[CI-DEBUG] AGGRESSIVE CPU burner active #{counter//1000} - PID {os.getpid()}", flush=True)
+                    if counter % 50 == 0:
+                        print(f"[CI-DEBUG] Light CPU activity during startup #{counter//50} - PID {os.getpid()}", flush=True)
+                else:
+                    # MODERATE: Work hard but cooperatively after startup
+                    for i in range(1000):  
+                        _ = sum(range(20)) * (i % 3 + 1)
+                        
+                    # Force memory allocation/deallocation (less frequent)
+                    if counter % 10 == 0:  
+                        temp_data = [list(range(50)) for _ in range(10)]
+                        del temp_data
+                        
+                        # Force string operations
+                        temp_str = "CI_KEEPALIVE_" * 20
+                        temp_str = temp_str.upper().lower()
+                        del temp_str
                     
+                    # Small sleep to be cooperative
+                    time_module.sleep(0.01)  # 10ms sleep
+                    
+                    if counter % 100 == 0:
+                        print(f"[CI-DEBUG] AGGRESSIVE CPU burner active #{counter//100} - PID {os.getpid()}", flush=True)
+                        
             else:
                 # Local development - be nice
                 time_module.sleep(1)
@@ -83,11 +96,11 @@ if os.getenv("USE_INMEMORY_DB") == "1":
                     port = test_socket.getsockname()[1]
                     test_socket.close()
                     
-                    if counter % 500 == 0:  # Every ~15 seconds
-                        print(f"[CI-DEBUG] Network keepalive #{counter//500} - tested port {port} - PID {os.getpid()}", flush=True)
+                    if counter % 100 == 0:  # More frequent reporting but less spam
+                        print(f"[CI-DEBUG] Network keepalive #{counter//100} - tested port {port} - PID {os.getpid()}", flush=True)
                         
-                    # Minimal sleep to prevent total CPU saturation but maintain activity
-                    time_module.sleep(0.01)  # 10ms
+                    # Cooperative sleep to allow FastAPI startup
+                    time_module.sleep(0.05)  # 50ms - more cooperative
                     
                 except Exception as e:
                     if counter % 1000 == 0:
@@ -116,10 +129,10 @@ if os.getenv("USE_INMEMORY_DB") == "1":
                     # Delete it
                     os.remove(temp_file)
                     
-                    if counter % 200 == 0:  # Every ~6 seconds
-                        print(f"[CI-DEBUG] File I/O keepalive #{counter//200} - PID {os.getpid()}", flush=True)
+                    if counter % 50 == 0:  # More frequent reporting
+                        print(f"[CI-DEBUG] File I/O keepalive #{counter//50} - PID {os.getpid()}", flush=True)
                         
-                    time_module.sleep(0.03)  # 30ms
+                    time_module.sleep(0.1)  # 100ms - more cooperative
                     
                 except Exception as e:
                     if counter % 500 == 0:
@@ -171,7 +184,7 @@ if os.getenv("USE_INMEMORY_DB") == "1":
     
     # Start ALL persistence mechanisms
     if ci_detected:
-        print("[CI-DEBUG] Starting AGGRESSIVE multi-threaded persistence for CI...", flush=True)
+        print("[CI-DEBUG] Starting GRADUATED multi-threaded persistence for CI...", flush=True)
         
         # Start CPU burner (highest priority)
         cpu_thread = threading.Thread(target=_aggressive_cpu_burner, daemon=True)
@@ -193,7 +206,7 @@ if os.getenv("USE_INMEMORY_DB") == "1":
         status_thread.start()
         _persistence_threads.append(status_thread)
         
-        print(f"[CI-DEBUG] Started {len(_persistence_threads)} aggressive persistence threads", flush=True)
+        print(f"[CI-DEBUG] Started {len(_persistence_threads)} graduated persistence threads", flush=True)
     else:
         print("[CI-DEBUG] Starting light persistence for local development...", flush=True)
         # Just status reporter for local
@@ -204,7 +217,7 @@ if os.getenv("USE_INMEMORY_DB") == "1":
     # Register cleanup
     atexit.register(_stop_all_persistence)
     
-    print("[CI-DEBUG] AGGRESSIVE module-level persistence activated", flush=True)
+    print("[CI-DEBUG] GRADUATED module-level persistence activated", flush=True)
 
 # Immediate CI logging
 if os.getenv("USE_INMEMORY_DB") == "1":
@@ -620,6 +633,15 @@ app = FastAPI(
     title="Trishul Core",
     lifespan=lifespan,
 )
+
+# Signal that FastAPI has been created (for graduated persistence)
+if os.getenv("USE_INMEMORY_DB") == "1":
+    try:
+        _fastapi_started = True
+        print("[CI-DEBUG] FastAPI app created - switching to aggressive persistence", flush=True)
+    except NameError:
+        # _fastapi_started not defined (persistence disabled)
+        pass
 
 # Add global exception handler that prevents process termination
 @app.exception_handler(Exception)
