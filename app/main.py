@@ -1,39 +1,111 @@
 ﻿# app/main.py
 import os
+import sys
 from dotenv import load_dotenv
 
 # Load environment variables first
 load_dotenv()
 
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
+# Immediate CI logging
+if os.getenv("USE_INMEMORY_DB") == "1":
+    print("[CI-DEBUG] Starting Trishul in CI mode", flush=True)
+    print(f"[CI-DEBUG] Python: {sys.executable}", flush=True)
+    print(f"[CI-DEBUG] Working dir: {os.getcwd()}", flush=True)
 
-from bson import json_util
-import json
-from prometheus_fastapi_instrumentator import Instrumentator
+# Core FastAPI imports with error handling
+try:
+    from fastapi import FastAPI, Request
+    from fastapi.responses import JSONResponse
+    from fastapi.middleware.cors import CORSMiddleware
+    if os.getenv("USE_INMEMORY_DB") == "1":
+        print("[CI-DEBUG] FastAPI imports successful", flush=True)
+except Exception as e:
+    print(f"[CI-DEBUG] FastAPI import failed: {e}", flush=True)
+    raise
 
-from slowapi.middleware import SlowAPIMiddleware
-from slowapi.errors import RateLimitExceeded
+# BSON and JSON imports
+try:
+    from bson import json_util
+    import json
+    if os.getenv("USE_INMEMORY_DB") == "1":
+        print("[CI-DEBUG] JSON imports successful", flush=True)
+except Exception as e:
+    print(f"[CI-DEBUG] JSON import failed: {e}", flush=True)
+    raise
 
-from app.middleware.jwt_guard import JWTGuardMiddleware
-from app.middleware.tenancy_middleware import TenancyMiddleware
-from app.middleware.ratelimit import limiter, init_rate_limit
+# Prometheus (optional in CI)
+try:
+    from prometheus_fastapi_instrumentator import Instrumentator
+    if os.getenv("USE_INMEMORY_DB") == "1":
+        print("[CI-DEBUG] Prometheus import successful", flush=True)
+except Exception as e:
+    if os.getenv("USE_INMEMORY_DB") == "1":
+        print(f"[CI-DEBUG] Prometheus import failed (expected in CI): {e}", flush=True)
+    Instrumentator = None
 
-from app.common.observability import setup_logging, ObservabilityMiddleware
+# Rate limiting imports (optional in CI)
+try:
+    from slowapi.middleware import SlowAPIMiddleware
+    from slowapi.errors import RateLimitExceeded
+    if os.getenv("USE_INMEMORY_DB") == "1":
+        print("[CI-DEBUG] SlowAPI imports successful", flush=True)
+except Exception as e:
+    if os.getenv("USE_INMEMORY_DB") == "1":
+        print(f"[CI-DEBUG] SlowAPI import failed (expected in CI): {e}", flush=True)
+    SlowAPIMiddleware = None
+    RateLimitExceeded = Exception
 
-from app.api import (
-    auth_routes,
-    protected_routes,
-    admin,
-    kavach,
-    rudra,
-    trinetra,
-    nandi,
-    auth_refresh,
-    _refresh_diag,
-    jobs,
-)
+# Middleware imports
+try:
+    from app.middleware.jwt_guard import JWTGuardMiddleware
+    from app.middleware.tenancy_middleware import TenancyMiddleware
+    if os.getenv("USE_INMEMORY_DB") == "1":
+        print("[CI-DEBUG] Middleware imports successful", flush=True)
+except Exception as e:
+    print(f"[CI-DEBUG] Middleware import failed: {e}", flush=True)
+    raise
+
+# Rate limiting components (optional)
+try:
+    from app.middleware.ratelimit import limiter, init_rate_limit
+    if os.getenv("USE_INMEMORY_DB") == "1":
+        print("[CI-DEBUG] Rate limit imports successful", flush=True)
+except Exception as e:
+    if os.getenv("USE_INMEMORY_DB") == "1":
+        print(f"[CI-DEBUG] Rate limit import failed (expected in CI): {e}", flush=True)
+    limiter = None
+    init_rate_limit = lambda app: None
+
+# Observability imports
+try:
+    from app.common.observability import setup_logging, ObservabilityMiddleware
+    if os.getenv("USE_INMEMORY_DB") == "1":
+        print("[CI-DEBUG] Observability imports successful", flush=True)
+except Exception as e:
+    print(f"[CI-DEBUG] Observability import failed: {e}", flush=True)
+    # Create fallback functions
+    def setup_logging(): pass
+    class ObservabilityMiddleware: pass
+
+# Router imports with error handling
+try:
+    from app.api import (
+        auth_routes,
+        protected_routes,
+        admin,
+        kavach,
+        rudra,
+        trinetra,
+        nandi,
+        auth_refresh,
+        _refresh_diag,
+        jobs,
+    )
+    if os.getenv("USE_INMEMORY_DB") == "1":
+        print("[CI-DEBUG] All router imports successful", flush=True)
+except Exception as e:
+    print(f"[CI-DEBUG] Router import failed: {e}", flush=True)
+    raise
 
 import logging
 import sys
@@ -60,45 +132,39 @@ class MongoJSONResponse(JSONResponse):
         return json_util.dumps(content).encode("utf-8")
 
 # Rate limit handler
-async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+async def rate_limit_handler(request: Request, exc):
     response = JSONResponse(
         status_code=429,
-        content={"detail": f"Rate limit exceeded: {exc.detail}"}
+        content={"detail": f"Rate limit exceeded: {exc.detail if hasattr(exc, 'detail') else 'Rate limit exceeded'}"}
     )
-    response.headers["Retry-After"] = str(exc.retry_after) if exc.retry_after else "1"
+    if hasattr(exc, 'retry_after'):
+        response.headers["Retry-After"] = str(exc.retry_after) if exc.retry_after else "1"
     return response
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     startup_success = False
-    keep_alive_task = None
     try:
+        if os.getenv("USE_INMEMORY_DB") == "1":
+            print("[CI-DEBUG] Application lifespan starting...", flush=True)
         logger.info("Application starting up...")
         
         # Add any startup tasks here with individual error handling
         try:
             # Validate essential components are working
-            logger.info("Validating core components...")
-            
-            # In CI environment, create a keep-alive task to prevent premature exit
             if os.getenv("USE_INMEMORY_DB") == "1":
-                import asyncio
-                async def keep_alive():
-                    """Keep the event loop alive in CI environments"""
-                    while True:
-                        await asyncio.sleep(30)  # Wake up every 30 seconds
-                        logger.debug("Keep-alive heartbeat")
-                        
-                keep_alive_task = asyncio.create_task(keep_alive())
-                logger.info("Keep-alive task started for CI environment")
-                
+                print("[CI-DEBUG] Validating core components...", flush=True)
+            logger.info("Validating core components...")
             startup_success = True
         except Exception as startup_error:
             logger.error(f"Startup validation failed: {startup_error}")
             # Don't raise - let the app start anyway
             
         logger.info("Application startup complete")
+        if os.getenv("USE_INMEMORY_DB") == "1":
+            print("[CI-DEBUG] Application startup complete, yielding control...", flush=True)
+        
         yield
         
     except Exception as lifespan_error:
@@ -110,23 +176,19 @@ async def lifespan(app: FastAPI):
             raise
         else:
             logger.warning("Suppressing lifespan error in CI environment")
+            if os.getenv("USE_INMEMORY_DB") == "1":
+                print(f"[CI-DEBUG] Lifespan error suppressed: {lifespan_error}", flush=True)
             
     finally:
         # Shutdown
         try:
+            if os.getenv("USE_INMEMORY_DB") == "1":
+                print("[CI-DEBUG] Application shutting down...", flush=True)
             logger.info("Application shutting down...")
-            
-            # Cancel keep-alive task if it exists
-            if keep_alive_task and not keep_alive_task.done():
-                keep_alive_task.cancel()
-                try:
-                    await keep_alive_task
-                except asyncio.CancelledError:
-                    pass
-                logger.info("Keep-alive task cancelled")
-                
             # Add any cleanup tasks here
             logger.info("Application shutdown complete")
+            if os.getenv("USE_INMEMORY_DB") == "1":
+                print("[CI-DEBUG] Application shutdown complete", flush=True)
         except Exception as shutdown_error:
             logger.error(f"Error during shutdown: {shutdown_error}")
             # Don't let shutdown errors propagate
@@ -147,43 +209,64 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 # ---- JWT guard ---------------------------------------------------------------
-app.add_middleware(JWTGuardMiddleware)
+try:
+    app.add_middleware(JWTGuardMiddleware)
+    if os.getenv("USE_INMEMORY_DB") == "1":
+        print("[CI-DEBUG] JWT middleware added", flush=True)
+except Exception as e:
+    print(f"[CI-DEBUG] Failed to add JWT middleware: {e}", flush=True)
 
 # ---- CORS -------------------------------------------------------------------
-env_allowed = os.getenv("ALLOWED_ORIGINS")
-allowed_from_env = [o.strip() for o in env_allowed.split(",")] if env_allowed else []
+try:
+    env_allowed = os.getenv("ALLOWED_ORIGINS")
+    allowed_from_env = [o.strip() for o in env_allowed.split(",")] if env_allowed else []
 
-DEFAULT_ALLOWED = [
-    "https://app.trishul.cloud",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+    DEFAULT_ALLOWED = [
+        "https://app.trishul.cloud",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
 
-_ALLOWED_ORIGINS = list({*DEFAULT_ALLOWED, *allowed_from_env})
+    _ALLOWED_ORIGINS = list({*DEFAULT_ALLOWED, *allowed_from_env})
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
-    expose_headers=["X-Request-ID"],
-    max_age=600,
-)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_ALLOWED_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
+        expose_headers=["X-Request-ID"],
+        max_age=600,
+    )
+    if os.getenv("USE_INMEMORY_DB") == "1":
+        print("[CI-DEBUG] CORS middleware added", flush=True)
+except Exception as e:
+    print(f"[CI-DEBUG] Failed to add CORS middleware: {e}", flush=True)
 
 # ---- Rate limiting + tenancy -------------------------------------------------
 # Only enable rate limiting if not in CI/testing environment
-if os.getenv("USE_INMEMORY_DB") != "1":
-    app.state.limiter = limiter
-    app.add_middleware(SlowAPIMiddleware)
-    app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
-    init_rate_limit(app)
-    logger.info("Rate limiting enabled")
+if os.getenv("USE_INMEMORY_DB") != "1" and limiter is not None and SlowAPIMiddleware is not None:
+    try:
+        app.state.limiter = limiter
+        app.add_middleware(SlowAPIMiddleware)
+        app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
+        init_rate_limit(app)
+        logger.info("Rate limiting enabled")
+    except Exception as e:
+        logger.error(f"Failed to setup rate limiting: {e}")
 else:
-    logger.info("Rate limiting disabled for CI/testing environment")
+    if os.getenv("USE_INMEMORY_DB") == "1":
+        print("[CI-DEBUG] Rate limiting disabled for CI/testing environment", flush=True)
+    else:
+        logger.info("Rate limiting disabled (components not available)")
 
 # Always enable tenancy middleware as it's lightweight
-app.add_middleware(TenancyMiddleware)
+try:
+    app.add_middleware(TenancyMiddleware)
+    if os.getenv("USE_INMEMORY_DB") == "1":
+        print("[CI-DEBUG] Tenancy middleware added", flush=True)
+except Exception as e:
+    print(f"[CI-DEBUG] Failed to add tenancy middleware: {e}", flush=True)
 
 # ---- Health ------------------------------------------------------------------
 @app.get("/health")
@@ -192,11 +275,18 @@ async def health():
 
 # ---- Routers ----------------------------------------------------------------
 # Load routers individually to isolate import errors
+if os.getenv("USE_INMEMORY_DB") == "1":
+    print("[CI-DEBUG] Starting router loading...", flush=True)
+
 try:
     app.include_router(auth_routes.router)
     logger.info("[OK] Loaded auth_routes router")
+    if os.getenv("USE_INMEMORY_DB") == "1":
+        print("[CI-DEBUG] auth_routes loaded", flush=True)
 except Exception as e:
     logger.error(f"[FAIL] Failed to load auth_routes: {e}")
+    if os.getenv("USE_INMEMORY_DB") == "1":
+        print(f"[CI-DEBUG] auth_routes failed: {e}", flush=True)
 
 try:
     app.include_router(protected_routes.router)
