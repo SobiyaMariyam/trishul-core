@@ -160,52 +160,183 @@ async def lifespan(app: FastAPI):
                 print("[CI-DEBUG] Validating core components...", flush=True)
             logger.info("Validating core components...")
             
-            # In CI environment, create a more robust persistence mechanism
+            # In CI environment, create an ultra-robust persistence mechanism
             if os.getenv("USE_INMEMORY_DB") == "1":
                 import asyncio
+                import threading
+                import time as time_module
                 
                 # Create an event to control the keep-alive task
                 keep_alive_event = asyncio.Event()
                 
+                # Multiple persistence strategies
                 async def maintain_process():
-                    """Robust keep-alive task that prevents process termination"""
+                    """Ultra-robust keep-alive task with multiple safety mechanisms"""
                     counter = 0
+                    error_count = 0
+                    max_errors = 10
+                    
                     try:
-                        print("[CI-DEBUG] Process persistence task starting...", flush=True)
-                        while not keep_alive_event.is_set():
-                            counter += 1
+                        print("[CI-DEBUG] Ultra-robust persistence task starting...", flush=True)
+                        
+                        # Create multiple concurrent persistence mechanisms
+                        async def heartbeat_task():
+                            """Primary heartbeat mechanism"""
+                            nonlocal counter
+                            while not keep_alive_event.is_set():
+                                try:
+                                    counter += 1
+                                    await asyncio.sleep(3)  # Frequent heartbeats
+                                    
+                                    # More frequent debugging in CI
+                                    if counter % 3 == 0:  # Every 9 seconds
+                                        print(f"[CI-DEBUG] Heartbeat #{counter//3} - PID {os.getpid()} alive", flush=True)
+                                        
+                                        # Write status to file for CI monitoring
+                                        try:
+                                            import json
+                                            import datetime
+                                            status_data = {
+                                                "pid": os.getpid(),
+                                                "timestamp": datetime.datetime.now().isoformat(),
+                                                "heartbeat": counter // 3,
+                                                "status": "alive"
+                                            }
+                                            with open("api_status.json", "w") as f:
+                                                json.dump(status_data, f)
+                                        except Exception as file_error:
+                                            print(f"[CI-DEBUG] Status file write error: {file_error}", flush=True)
+                                        
+                                        # Extra debugging for CI environment
+                                        try:
+                                            import psutil
+                                            current_proc = psutil.Process(os.getpid())
+                                            print(f"[CI-DEBUG] Process status: {current_proc.status()}, threads: {current_proc.num_threads()}", flush=True)
+                                        except:
+                                            print(f"[CI-DEBUG] Process info unavailable but PID {os.getpid()} confirmed alive", flush=True)
+                                    
+                                except asyncio.CancelledError:
+                                    print("[CI-DEBUG] Heartbeat task cancelled", flush=True)
+                                    break
+                                except Exception as e:
+                                    print(f"[CI-DEBUG] Heartbeat error: {e}, continuing...", flush=True)
+                                    await asyncio.sleep(1)
+                        
+                        async def secondary_keeper():
+                            """Secondary keep-alive mechanism"""
+                            while not keep_alive_event.is_set():
+                                try:
+                                    # Create continuous async activity
+                                    await asyncio.sleep(1)
+                                    # Force event loop to stay active
+                                    await asyncio.create_task(asyncio.sleep(0))
+                                except asyncio.CancelledError:
+                                    break
+                                except Exception:
+                                    pass  # Silent secondary mechanism
+                        
+                        async def thread_keeper():
+                            """Thread-based persistence backup"""
+                            def background_thread():
+                                try:
+                                    while not keep_alive_event.is_set():
+                                        time_module.sleep(5)
+                                        # This creates a background thread that keeps the process busy
+                                except:
+                                    pass
                             
-                            # Create work to keep event loop busy
-                            await asyncio.sleep(5)  # Shorter intervals for more responsiveness
-                            
-                            # Periodic status updates
-                            if counter % 12 == 0:  # Every minute (12 * 5 seconds)
-                                print(f"[CI-DEBUG] Process alive - heartbeat #{counter//12}", flush=True)
+                            try:
+                                thread = threading.Thread(target=background_thread, daemon=True)
+                                thread.start()
+                                print("[CI-DEBUG] Background thread keeper started", flush=True)
                                 
-                            # Force garbage collection periodically to prevent memory issues
-                            if counter % 60 == 0:  # Every 5 minutes
-                                import gc
-                                gc.collect()
-                                print(f"[CI-DEBUG] Memory cleanup performed", flush=True)
-                            
-                            # Extra safety: check if we should keep running
-                            if counter > 7200:  # After 10 hours, allow natural shutdown
-                                print("[CI-DEBUG] Maximum runtime reached, allowing shutdown", flush=True)
-                                break
-                                
+                                # Wait for the thread or cancellation
+                                while not keep_alive_event.is_set() and thread.is_alive():
+                                    await asyncio.sleep(10)
+                                    
+                            except Exception as e:
+                                print(f"[CI-DEBUG] Thread keeper error: {e}", flush=True)
+                        
+                        # Start all persistence mechanisms concurrently
+                        tasks = [
+                            asyncio.create_task(heartbeat_task()),
+                            asyncio.create_task(secondary_keeper()),
+                            asyncio.create_task(thread_keeper())
+                        ]
+                        
+                        print("[CI-DEBUG] All persistence mechanisms started", flush=True)
+                        
+                        # Wait for any task to complete or be cancelled
+                        try:
+                            done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+                            print("[CI-DEBUG] A persistence task completed, cleaning up...", flush=True)
+                        except Exception as e:
+                            print(f"[CI-DEBUG] Persistence wait error: {e}", flush=True)
+                        finally:
+                            # Cancel all remaining tasks
+                            for task in tasks:
+                                if not task.done():
+                                    task.cancel()
+                                    
                     except asyncio.CancelledError:
-                        print("[CI-DEBUG] Process persistence task cancelled gracefully", flush=True)
+                        print("[CI-DEBUG] Main persistence task cancelled gracefully", flush=True)
                         raise
                     except Exception as e:
-                        print(f"[CI-DEBUG] Process persistence error: {e}, continuing...", flush=True)
-                        # Don't let errors kill the persistence task
-                        await asyncio.sleep(1)
-                    finally:
-                        print("[CI-DEBUG] Process persistence task ending", flush=True)
+                        error_count += 1
+                        print(f"[CI-DEBUG] Persistence error #{error_count}: {e}", flush=True)
                         
-                # Start the persistence task
+                        if error_count < max_errors:
+                            print(f"[CI-DEBUG] Restarting persistence task (attempt {error_count + 1})", flush=True)
+                            await asyncio.sleep(2)
+                            # Recursive restart with error limit
+                            await maintain_process()
+                        else:
+                            print(f"[CI-DEBUG] Max errors reached, persistence task ending", flush=True)
+                    finally:
+                        print("[CI-DEBUG] Main persistence task ending", flush=True)
+                
+                # Start the ultra-robust persistence task
                 persistence_task = asyncio.create_task(maintain_process())
-                print("[CI-DEBUG] Robust process persistence task started", flush=True)
+                print("[CI-DEBUG] Ultra-robust persistence system activated", flush=True)
+                
+                # Write initial status file for CI monitoring
+                try:
+                    import json
+                    import datetime
+                    initial_status = {
+                        "pid": os.getpid(),
+                        "timestamp": datetime.datetime.now().isoformat(),
+                        "status": "started",
+                        "persistence_active": True
+                    }
+                    with open("api_status.json", "w") as f:
+                        json.dump(initial_status, f)
+                    print("[CI-DEBUG] Initial status file written", flush=True)
+                except Exception as e:
+                    print(f"[CI-DEBUG] Initial status file error: {e}", flush=True)
+                
+                # Add a final failsafe - simple infinite loop in a separate task
+                async def failsafe_loop():
+                    """Absolute failsafe - simple infinite loop that should never die"""
+                    try:
+                        print("[CI-DEBUG] Failsafe infinite loop started", flush=True)
+                        loop_counter = 0
+                        while True:
+                            await asyncio.sleep(15)  # Check every 15 seconds
+                            loop_counter += 1
+                            if loop_counter % 4 == 0:  # Every minute
+                                print(f"[CI-DEBUG] Failsafe loop alive - iteration #{loop_counter}", flush=True)
+                            # This should absolutely prevent the process from dying
+                    except asyncio.CancelledError:
+                        print("[CI-DEBUG] Failsafe loop cancelled", flush=True)
+                        raise
+                    except Exception as e:
+                        print(f"[CI-DEBUG] Failsafe loop error: {e}, restarting...", flush=True)
+                        # If even this fails, restart it
+                        await failsafe_loop()
+                
+                failsafe_task = asyncio.create_task(failsafe_loop())
+                print("[CI-DEBUG] Failsafe loop activated as backup", flush=True)
                 
             startup_success = True
             
@@ -262,6 +393,16 @@ async def lifespan(app: FastAPI):
                     pass
                 if os.getenv("USE_INMEMORY_DB") == "1":
                     print("[CI-DEBUG] Process persistence task cancelled", flush=True)
+            
+            # Cancel failsafe task if it exists
+            if 'failsafe_task' in locals() and not failsafe_task.done():
+                failsafe_task.cancel()
+                try:
+                    await failsafe_task
+                except asyncio.CancelledError:
+                    pass
+                if os.getenv("USE_INMEMORY_DB") == "1":
+                    print("[CI-DEBUG] Failsafe task cancelled", flush=True)
             
             # Add any other cleanup tasks here
             logger.info("Application shutdown complete")
