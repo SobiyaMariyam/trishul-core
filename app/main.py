@@ -6,6 +6,79 @@ from dotenv import load_dotenv
 # Load environment variables first
 load_dotenv()
 
+# ---- Module-Level Persistence (Independent of FastAPI Lifespan) -----------
+# This runs as soon as the module is imported, independent of FastAPI startup
+if os.getenv("USE_INMEMORY_DB") == "1":
+    import threading
+    import time as time_module
+    import atexit
+    
+    print("[CI-DEBUG] Initializing module-level persistence...", flush=True)
+    
+    # Global flag to control persistence
+    _persistence_active = True
+    _persistence_thread = None
+    
+    def _module_level_persistence():
+        """Thread-based persistence that runs independent of FastAPI"""
+        global _persistence_active
+        counter = 0
+        
+        try:
+            print("[CI-DEBUG] Module-level persistence thread started", flush=True)
+            
+            while _persistence_active:
+                counter += 1
+                time_module.sleep(5)  # Check every 5 seconds
+                
+                if counter % 6 == 0:  # Every 30 seconds
+                    print(f"[CI-DEBUG] Module persistence heartbeat #{counter//6} - PID {os.getpid()}", flush=True)
+                    
+                    # Write status file
+                    try:
+                        import json
+                        import datetime
+                        status_data = {
+                            "pid": os.getpid(),
+                            "timestamp": datetime.datetime.now().isoformat(),
+                            "heartbeat": counter // 6,
+                            "status": "module_alive", 
+                            "thread_based": True
+                        }
+                        with open("api_status.json", "w") as f:
+                            json.dump(status_data, f)
+                    except Exception as e:
+                        print(f"[CI-DEBUG] Module status write error: {e}", flush=True)
+                        
+                # Keep the process busy with some work
+                try:
+                    # Create some CPU activity to prevent process optimization
+                    _ = sum(range(100))
+                except:
+                    pass
+                    
+        except Exception as e:
+            print(f"[CI-DEBUG] Module persistence error: {e}", flush=True)
+        finally:
+            print("[CI-DEBUG] Module persistence thread ending", flush=True)
+    
+    def _stop_module_persistence():
+        """Stop the module-level persistence"""
+        global _persistence_active, _persistence_thread
+        _persistence_active = False
+        if _persistence_thread and _persistence_thread.is_alive():
+            _persistence_thread.join(timeout=5)
+            print("[CI-DEBUG] Module persistence stopped", flush=True)
+    
+    # Start the persistence thread immediately
+    _persistence_thread = threading.Thread(target=_module_level_persistence, daemon=True)
+    _persistence_thread.start()
+    
+    # Register cleanup
+    atexit.register(_stop_module_persistence)
+    
+    print("[CI-DEBUG] Module-level persistence activated", flush=True)
+
 # Immediate CI logging
 if os.getenv("USE_INMEMORY_DB") == "1":
     print("[CI-DEBUG] Starting Trishul in CI mode", flush=True)
