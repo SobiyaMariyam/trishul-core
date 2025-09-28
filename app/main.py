@@ -232,12 +232,22 @@ def cleanup():
         logger.error(f"Error during cleanup: {e}")
 
 # Register cleanup function
-atexit.register(cleanup)
+# Register cleanup function only if not in CI environment
+if os.getenv("USE_INMEMORY_DB") != "1":
+    atexit.register(cleanup)
+    logger.info("Cleanup handler registered")
+else:
+    logger.info("Cleanup handler disabled for CI/testing environment")
 
 def signal_handler(signum, frame):
     logger.info(f"Received signal {signum}")
     cleanup()
     sys.exit(0)
 
-signal.signal(signal.SIGTERM, signal_handler)
-signal.signal(signal.SIGINT, signal_handler)
+# Only register signal handlers if not in CI/testing environment
+if os.getenv("USE_INMEMORY_DB") != "1":
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+    logger.info("Signal handlers registered")
+else:
+    logger.info("Signal handlers disabled for CI/testing environment")
