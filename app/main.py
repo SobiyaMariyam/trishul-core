@@ -27,12 +27,33 @@ if os.getenv("USE_INMEMORY_DB") == "1":
         try:
             print("[CI-DEBUG] Module-level persistence thread started", flush=True)
             
+            # Enhanced CI detection for GitHub Actions
+            ci_indicators = [
+                "github" in os.getcwd().lower(),
+                "hostedtoolcache" in sys.executable.lower(),
+                "runner" in os.getcwd().lower(),
+                "\\a\\" in os.getcwd(),  # GitHub Actions uses D:\a\repo\repo pattern
+                "/home/runner" in os.getcwd().lower(),  # Linux runners
+                os.getenv("GITHUB_ACTIONS") == "true",
+                os.getenv("CI") == "true",
+                os.getenv("RUNNER_OS") is not None
+            ]
+            ci_detected = any(ci_indicators)
+            
+            print(f"[CI-DEBUG] CI Detection: {dict(zip(['github_cwd', 'hostedtoolcache_exe', 'runner_cwd', 'backslash_a', 'home_runner', 'github_actions_env', 'ci_env', 'runner_os_env'], ci_indicators))} => {ci_detected}", flush=True)
+            
+            sleep_interval = 2 if ci_detected else 5  # Faster in CI
+            
             while _persistence_active:
                 counter += 1
-                time_module.sleep(5)  # Check every 5 seconds
+                time_module.sleep(sleep_interval)
                 
-                if counter % 6 == 0:  # Every 30 seconds
-                    print(f"[CI-DEBUG] Module persistence heartbeat #{counter//6} - PID {os.getpid()}", flush=True)
+                # More frequent heartbeats in CI
+                heartbeat_frequency = 3 if ci_detected else 6  # Every 6s in CI vs 30s locally
+                
+                if counter % heartbeat_frequency == 0:
+                    heartbeat_num = counter // heartbeat_frequency
+                    print(f"[CI-DEBUG] Module persistence heartbeat #{heartbeat_num} - PID {os.getpid()}", flush=True)
                     
                     # Write status file
                     try:
@@ -41,21 +62,44 @@ if os.getenv("USE_INMEMORY_DB") == "1":
                         status_data = {
                             "pid": os.getpid(),
                             "timestamp": datetime.datetime.now().isoformat(),
-                            "heartbeat": counter // 6,
+                            "heartbeat": heartbeat_num,
                             "status": "module_alive", 
-                            "thread_based": True
+                            "thread_based": True,
+                            "ci_mode": ci_detected,
+                            "sleep_interval": sleep_interval
                         }
                         with open("api_status.json", "w") as f:
                             json.dump(status_data, f)
                     except Exception as e:
                         print(f"[CI-DEBUG] Module status write error: {e}", flush=True)
                         
-                # Keep the process busy with some work
-                try:
-                    # Create some CPU activity to prevent process optimization
-                    _ = sum(range(100))
-                except:
-                    pass
+                # Aggressive keep-alive for CI environments
+                if ci_detected:
+                    try:
+                        # Force Python to stay active with more work in CI
+                        for _ in range(1000):
+                            _ = sum(range(10))
+                        
+                        # Force memory activity
+                        temp_list = list(range(100))
+                        del temp_list
+                        
+                        # Force file I/O to show activity
+                        try:
+                            with open("heartbeat.tmp", "w") as f:
+                                f.write(f"heartbeat_{counter}")
+                            os.remove("heartbeat.tmp")
+                        except:
+                            pass
+                            
+                    except Exception:
+                        pass
+                else:
+                    # Light activity for local development
+                    try:
+                        _ = sum(range(100))
+                    except:
+                        pass
                     
         except Exception as e:
             print(f"[CI-DEBUG] Module persistence error: {e}", flush=True)
