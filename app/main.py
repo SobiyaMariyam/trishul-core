@@ -145,6 +145,7 @@ async def rate_limit_handler(request: Request, exc):
 async def lifespan(app: FastAPI):
     # Startup
     startup_success = False
+    persistence_task = None
     try:
         if os.getenv("USE_INMEMORY_DB") == "1":
             print("[CI-DEBUG] Application lifespan starting...", flush=True)
@@ -156,6 +157,28 @@ async def lifespan(app: FastAPI):
             if os.getenv("USE_INMEMORY_DB") == "1":
                 print("[CI-DEBUG] Validating core components...", flush=True)
             logger.info("Validating core components...")
+            
+            # In CI environment, create a persistence task to keep process alive
+            if os.getenv("USE_INMEMORY_DB") == "1":
+                import asyncio
+                async def maintain_process():
+                    """Keep the process alive in CI environments by maintaining async tasks"""
+                    try:
+                        counter = 0
+                        while True:
+                            await asyncio.sleep(10)  # Check every 10 seconds
+                            counter += 1
+                            if counter % 6 == 0:  # Log every minute
+                                print(f"[CI-DEBUG] Process persistence check #{counter//6}", flush=True)
+                    except asyncio.CancelledError:
+                        print("[CI-DEBUG] Process persistence task cancelled", flush=True)
+                        raise
+                    except Exception as e:
+                        print(f"[CI-DEBUG] Process persistence error: {e}", flush=True)
+                        
+                persistence_task = asyncio.create_task(maintain_process())
+                print("[CI-DEBUG] Process persistence task started", flush=True)
+                
             startup_success = True
         except Exception as startup_error:
             logger.error(f"Startup validation failed: {startup_error}")
@@ -185,6 +208,17 @@ async def lifespan(app: FastAPI):
             if os.getenv("USE_INMEMORY_DB") == "1":
                 print("[CI-DEBUG] Application shutting down...", flush=True)
             logger.info("Application shutting down...")
+            
+            # Cancel persistence task if it exists
+            if persistence_task and not persistence_task.done():
+                persistence_task.cancel()
+                try:
+                    await persistence_task
+                except asyncio.CancelledError:
+                    pass
+                if os.getenv("USE_INMEMORY_DB") == "1":
+                    print("[CI-DEBUG] Process persistence task cancelled", flush=True)
+            
             # Add any cleanup tasks here
             logger.info("Application shutdown complete")
             if os.getenv("USE_INMEMORY_DB") == "1":
@@ -402,10 +436,16 @@ if os.getenv("USE_INMEMORY_DB") != "1":
     atexit.register(cleanup)
     logger.info("Cleanup handler registered")
 else:
-    logger.info("Cleanup handler disabled for CI/testing environment")
+    if os.getenv("USE_INMEMORY_DB") == "1":
+        print("[CI-DEBUG] Cleanup handler disabled for CI/testing environment", flush=True)
+    else:
+        logger.info("Cleanup handler disabled for CI/testing environment")
 
 def signal_handler(signum, frame):
     logger.info(f"Received signal {signum}")
+    if os.getenv("USE_INMEMORY_DB") == "1":
+        print(f"[CI-DEBUG] Signal {signum} received but ignoring in CI mode", flush=True)
+        return  # Don't exit in CI mode
     cleanup()
     sys.exit(0)
 
@@ -415,4 +455,7 @@ if os.getenv("USE_INMEMORY_DB") != "1":
     signal.signal(signal.SIGINT, signal_handler)
     logger.info("Signal handlers registered")
 else:
-    logger.info("Signal handlers disabled for CI/testing environment")
+    if os.getenv("USE_INMEMORY_DB") == "1":
+        print("[CI-DEBUG] Signal handlers disabled for CI/testing environment", flush=True)
+    else:
+        logger.info("Signal handlers disabled for CI/testing environment")

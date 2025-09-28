@@ -12,7 +12,7 @@ import json
 def test_final_ci_pipeline():
     """Test that replicates the CI pipeline exactly"""
     
-    print("🚀 Final CI Pipeline Simulation Test")
+    print("Final CI Pipeline Simulation Test")
     print("="*50)
     
     # Set CI environment variables exactly like CI
