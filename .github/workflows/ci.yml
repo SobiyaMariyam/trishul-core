@@ -140,6 +140,17 @@ jobs:
       - name: Pre-test API Check
         shell: pwsh
         run: |
+          # Check aggressive keep-alive system status
+          Write-Host "Checking aggressive keep-alive system..."
+          
+          # Check heartbeat file
+          if (Test-Path 'api_heartbeat.txt') {
+            $heartbeat = Get-Content 'api_heartbeat.txt' -ErrorAction SilentlyContinue
+            Write-Host "📡 Heartbeat file: $heartbeat"
+          } else {
+            Write-Host "⚠️ No heartbeat file found"
+          }
+          
           # Check if API process is still running
           $processId = Get-Content 'api_process_id.txt' -ErrorAction SilentlyContinue
           if ($processId) {
@@ -147,6 +158,10 @@ jobs:
             $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
             if ($process) {
               Write-Host "✅ API process $processId is still running (Name: $($process.ProcessName), CPU: $($process.CPU))"
+              
+              # Give keep-alive system time to prevent termination
+              Write-Host "Allowing keep-alive system to stabilize..."
+              Start-Sleep -Seconds 10
               
               # Test health endpoint one more time before tests
               try {
@@ -189,14 +204,40 @@ jobs:
         env:
           HOST: tenant1.lvh.me
         run: |
-          Write-Host "Starting tests after brief pause..."
-          Start-Sleep -Seconds 2
+          Write-Host "Starting tests after keep-alive stabilization..."
+          Start-Sleep -Seconds 5
           
-          # Double-check API process is running
+          # Triple-check API process with heartbeat monitoring
           $processId = Get-Content 'api_process_id.txt' -ErrorAction SilentlyContinue
+          
+          # Check heartbeat file for signs of life
+          if (Test-Path 'api_heartbeat.txt') {
+            $heartbeat = Get-Content 'api_heartbeat.txt' -ErrorAction SilentlyContinue
+            Write-Host "📡 Pre-test heartbeat: $heartbeat"
+          }
+          
           if ($processId -and (Get-Process -Id $processId -ErrorAction SilentlyContinue)) {
             Write-Host "✅ API process $processId confirmed running before tests"
-            Invoke-Pester .\tests\*.Tests.ps1 -CI
+            
+            # Monitor heartbeat during test execution
+            $heartbeatJob = Start-Job -ScriptBlock {
+              param($heartbeatPath)
+              while ($true) {
+                if (Test-Path $heartbeatPath) {
+                  $hb = Get-Content $heartbeatPath -ErrorAction SilentlyContinue
+                  Write-Host "📡 During-test heartbeat: $hb"
+                }
+                Start-Sleep -Seconds 10
+              }
+            } -ArgumentList (Resolve-Path 'api_heartbeat.txt')
+            
+            try {
+              Invoke-Pester .\tests\*.Tests.ps1 -CI
+            } finally {
+              # Clean up heartbeat monitoring job
+              Stop-Job $heartbeatJob -ErrorAction SilentlyContinue
+              Remove-Job $heartbeatJob -ErrorAction SilentlyContinue
+            }
           } else {
             Write-Host "❌ API process died right before tests!"
             Write-Host "API output:"
