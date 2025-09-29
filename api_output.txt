@@ -1,0 +1,5 @@
+[CI-DEBUG] Starting Trishul in CI mode
+[CI-DEBUG] GitHub Actions detected
+[CI-DEBUG] API initialized
+[CI-DEBUG] Health check - PID 29604
+INFO:     127.0.0.1:13900 - "GET /health HTTP/1.1" 200 OK

@@ -85,7 +85,7 @@ def main():
         
         # Wait for API to be ready
         if wait_for_api_ready(timeout):
-            log("✅ API is ready and healthy!")
+            log("API is ready and healthy!")
             
             # For GitHub Actions, just keep it running
             if is_github:
@@ -125,7 +125,7 @@ def main():
                     log("Shutdown requested")
                     break
         else:
-            log("❌ API failed to become ready")
+            log("API failed to become ready")
             
         # Cleanup this attempt
         if api_process.poll() is None:

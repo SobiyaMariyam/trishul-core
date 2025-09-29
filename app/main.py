@@ -4,8 +4,29 @@ from dotenv import load_dotenv
 load_dotenv()
 
 CI_MODE = os.getenv("USE_INMEMORY_DB") == "1"
+GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true" or os.getenv("CI") == "true"
+
 if CI_MODE:
     print("[CI-DEBUG] Starting Trishul in CI mode", flush=True)
+    if GITHUB_ACTIONS:
+        print("[CI-DEBUG] GitHub Actions detected", flush=True)
+        
+        # Write process ID for GitHub Actions monitoring
+        import threading
+        import time
+        
+        def write_process_id():
+            """Write process ID for GitHub Actions to monitor"""
+            while True:
+                try:
+                    with open("api_process_id.txt", "w") as f:
+                        f.write(str(os.getpid()))
+                    time.sleep(5)
+                except:
+                    pass
+        
+        pid_thread = threading.Thread(target=write_process_id, daemon=True)
+        pid_thread.start()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

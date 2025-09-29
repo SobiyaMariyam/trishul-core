@@ -49,7 +49,7 @@ jobs:
           $env:TENANT_DOMAIN = "tenant1.lvh.me"
           $env:USE_INMEMORY_DB = "1"
           
-          Write-Host "Starting API with direct uvicorn launch..."
+          Write-Host "Starting API with enhanced persistence..."
           $apiProcess = Start-Process python -ArgumentList @(
             '-m', 'uvicorn', 
             'app.main:app', 
@@ -63,10 +63,10 @@ jobs:
           # Store the process ID for later steps
           $apiProcess.Id | Out-File -FilePath 'api_process_id.txt' -NoNewline
           
-          # Give it a moment to start
-          Start-Sleep -Seconds 5
+          # Give API time to start
+          Start-Sleep -Seconds 10
           
-          # Check if process died and show output
+          # Check if API process died and show output
           if (-not (Get-Process -Id $apiProcess.Id -ErrorAction SilentlyContinue)) {
             Write-Host "API process died! Output:"
             if (Test-Path 'api_output.txt') {
@@ -80,18 +80,29 @@ jobs:
             throw "API process died - check output above for errors"
           }
           
+          # Wait for API to create its PID file
+          $pidCheckTimeout = (Get-Date).AddSeconds(30)
+          while ((Get-Date) -lt $pidCheckTimeout) {
+            if (Test-Path 'api_process_id.txt') {
+              $pidFromFile = Get-Content 'api_process_id.txt' -ErrorAction SilentlyContinue
+              Write-Host "API wrote PID file: $pidFromFile"
+              break
+            }
+            Start-Sleep -Seconds 1
+          }
+          
           # Wait for startup and test health endpoint
-          Write-Host "Process is running, testing health endpoint..."
-          $timeout = (Get-Date).AddSeconds(30)
+          Write-Host "Testing health endpoint..."
+          $timeout = (Get-Date).AddSeconds(45)
           $attempts = 0
           $response = ""
           do {
             $attempts++
             Write-Host "Attempt $attempts..."
             
-            # Check if process died during startup
+            # Check if API process died during startup
             if (-not (Get-Process -Id $apiProcess.Id -ErrorAction SilentlyContinue)) {
-              Write-Host "Process died during health checks! Output:"
+              Write-Host "API process died during health checks! Output:"
               if (Test-Path 'api_output.txt') { Get-Content 'api_output.txt' | Write-Host }
               if (Test-Path 'api_error.txt') { Get-Content 'api_error.txt' | Write-Host }
               throw "API process died during startup"
@@ -111,8 +122,8 @@ jobs:
           } while ((Get-Date) -lt $timeout)
           
           if ($response -ne '200') { 
-            Write-Host "Final process check: $(Get-Process -Id $apiProcess.Id -ErrorAction SilentlyContinue)"
-            Write-Host "Server output:"
+            Write-Host "Final API process check: $(Get-Process -Id $apiProcess.Id -ErrorAction SilentlyContinue)"
+            Write-Host "API output:"
             if (Test-Path 'api_output.txt') { Get-Content 'api_output.txt' | Write-Host }
             if (Test-Path 'api_error.txt') { Get-Content 'api_error.txt' | Write-Host }
             throw 'API failed to start - final response: ' + $response
@@ -181,13 +192,15 @@ jobs:
           Write-Host "Starting tests after brief pause..."
           Start-Sleep -Seconds 2
           
-          # Double-check process is still running right before tests
+          # Double-check API process is running
           $processId = Get-Content 'api_process_id.txt' -ErrorAction SilentlyContinue
           if ($processId -and (Get-Process -Id $processId -ErrorAction SilentlyContinue)) {
             Write-Host "✅ API process $processId confirmed running before tests"
             Invoke-Pester .\tests\*.Tests.ps1 -CI
           } else {
             Write-Host "❌ API process died right before tests!"
+            Write-Host "API output:"
+            if (Test-Path 'api_output.txt') { Get-Content 'api_output.txt' | Write-Host }
             throw "API process not available for testing"
           }
 
